@@ -33,21 +33,26 @@ export async function registerRoutes(
 
       let count = 0;
       for (const row of data) {
-        // Expected columns: userId, type, description, date
-        if (row.userId && row.type && row.description && row.date) {
+        // Mappa le colonne del foglio Google (Atleta, Scadenza, Descrizione, Data)
+        const userId = row.userId || row["Atleta"] || row["Discord ID"];
+        const type = row.type || row["Scadenza"] || row["Tipo"];
+        const description = row.description || row["Descrizione"];
+        const dateStr = row.date || row["Data"];
+
+        if (userId && type && description && dateStr) {
           await storage.createDeadline({
-            userId: String(row.userId),
-            type: String(row.type),
-            description: String(row.description),
-            date: new Date(row.date),
+            userId: String(userId),
+            type: String(type),
+            description: String(description),
+            date: new Date(dateStr),
           });
           count++;
         }
       }
 
-      res.json({ message: "Import successful", count });
+      res.json({ message: "Importazione completata con successo", count });
     } catch (error: any) {
-      res.status(400).json({ message: error.message || "Failed to parse Excel file" });
+      res.status(400).json({ message: error.message || "Impossibile elaborare il file Excel" });
     }
   });
 
