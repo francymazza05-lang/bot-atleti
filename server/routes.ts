@@ -33,25 +33,36 @@ export async function registerRoutes(
 
       let count = 0;
       for (const row of data) {
-        // Mappa le colonne specifiche: nome dell'atleta, data di scadenza pagamento, data di scadenza certificato medico, data di scadenza tabella
-        const athleteName = row["nome dell'atleta"] || row["Atleta"];
-        const pagamentoDate = row["data di scadenza pagamento"];
-        const certificatoDate = row["data di scadenza certificato medico"];
-        const tabellaDate = row["data di scadenza tabella"];
+        // Mappa le nuove colonne: NOME, DATA DI NASCITA, TESSERA FIDAL, TIPO DI ABBONAMENTO, SCADENZA ABBONAMENTO, SCADENZA CERTIFICATO, SCADENZA TABELLA
+        const athleteName = row["NOME"] || row["nome dell'atleta"] || row["Atleta"];
+        const dateOfBirth = row["DATA DI NASCITA"];
+        const fidalCard = row["TESSERA FIDAL"];
+        const subscriptionType = row["TIPO DI ABBONAMENTO"];
+        
+        const pagamentoDate = row["SCADENZA ABBONAMENTO"] || row["data di scadenza pagamento"];
+        const certificatoDate = row["SCADENZA CERTIFICATO"] || row["data di scadenza certificato medico"];
+        const tabellaDate = row["SCADENZA TABELLA"] || row["data di scadenza tabella"];
 
         if (athleteName) {
+          const baseData = {
+            athleteName: String(athleteName),
+            dateOfBirth: dateOfBirth ? String(dateOfBirth) : null,
+            fidalCard: fidalCard ? String(fidalCard) : null,
+            subscriptionType: subscriptionType ? String(subscriptionType) : null,
+          };
+
           if (pagamentoDate) {
             await storage.createDeadline({
-              athleteName: String(athleteName),
+              ...baseData,
               type: "pagamento",
-              description: "Scadenza Pagamento",
+              description: "Scadenza Abbonamento",
               date: new Date(pagamentoDate),
             });
             count++;
           }
           if (certificatoDate) {
             await storage.createDeadline({
-              athleteName: String(athleteName),
+              ...baseData,
               type: "certificato",
               description: "Scadenza Certificato Medico",
               date: new Date(certificatoDate),
@@ -60,7 +71,7 @@ export async function registerRoutes(
           }
           if (tabellaDate) {
             await storage.createDeadline({
-              athleteName: String(athleteName),
+              ...baseData,
               type: "tabella",
               description: "Scadenza Tabella",
               date: new Date(tabellaDate),

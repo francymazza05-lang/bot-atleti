@@ -53,6 +53,35 @@ export class BotService {
       } else if (content === '!motivazione') {
         const quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
         await message.reply(quote);
+      } else if (content.startsWith('!info ')) {
+        const name = content.replace('!info ', '').trim();
+        if (!name) {
+          await message.reply('Specifica il nome dell\'atleta. Es: `!info Mario Rossi`');
+          return;
+        }
+
+        const deadlines = await storage.getDeadlinesByAthlete(name);
+        if (deadlines.length === 0) {
+          await message.reply(`Nessuna informazione trovata per l'atleta "${name}".`);
+        } else {
+          const first = deadlines[0];
+          let reply = `📋 **Scheda Atleta: ${name}**\n`;
+          reply += `- **Data di Nascita**: ${first.dateOfBirth || 'N/D'}\n`;
+          reply += `- **Tessera FIDAL**: ${first.fidalCard || 'N/D'}\n`;
+          reply += `- **Tipo Abbonamento**: ${first.subscriptionType || 'N/D'}\n\n`;
+          
+          reply += `**Scadenze:**\n`;
+          for (const d of deadlines) {
+            const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            let status = "";
+            if (diffDays < 0) status = " (SCADUTA)";
+            else if (diffDays === 0) status = " (SCADE OGGI)";
+            else status = ` (tra ${diffDays} gg)`;
+            
+            reply += `- **${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+          }
+          await message.reply(reply);
+        }
       } else if (content.startsWith('!scadenza')) {
         const name = content.replace('!scadenza', '').trim();
         if (!name) {
@@ -75,6 +104,42 @@ export class BotService {
             reply += `- **${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
           }
           await message.reply(reply);
+        }
+      } else {
+        // Cerca se il messaggio contiene un nome di colonna e un nome atleta
+        // Esempio: "tessera fidal Mario Rossi"
+        const keywords = [
+          { key: "tessera fidal", field: "fidalCard", label: "Tessera FIDAL" },
+          { key: "data di nascita", field: "dateOfBirth", label: "Data di Nascita" },
+          { key: "abbonamento", field: "subscriptionType", label: "Tipo Abbonamento" },
+          { key: "scadenza abbonamento", type: "pagamento", label: "Scadenza Abbonamento" },
+          { key: "scadenza certificato", type: "certificato", label: "Scadenza Certificato" },
+          { key: "scadenza tabella", type: "tabella", label: "Scadenza Tabella" }
+        ];
+
+        for (const kw of keywords) {
+          if (content.startsWith(kw.key)) {
+            const name = content.replace(kw.key, '').trim();
+            if (!name) continue;
+
+            const deadlines = await storage.getDeadlinesByAthlete(name);
+            if (deadlines.length > 0) {
+              const first = deadlines[0];
+              if ('field' in kw) {
+                const val = (first as any)[kw.field];
+                await message.reply(`La **${kw.label}** di **${name}** è: ${val || 'N/D'}`);
+              } else if ('type' in kw) {
+                const d = deadlines.find(dl => dl.type === kw.type);
+                if (d) {
+                  const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  await message.reply(`La **${kw.label}** di **${name}** è il **${d.date.toLocaleDateString()}** (tra ${diffDays} giorni).`);
+                } else {
+                  await message.reply(`Non ho trovato una ${kw.label} per **${name}**.`);
+                }
+              }
+              return;
+            }
+          }
         }
       }
     });

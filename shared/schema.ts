@@ -22,6 +22,9 @@ export const workouts = pgTable("workouts", {
 export const deadlines = pgTable("deadlines", {
   id: serial("id").primaryKey(),
   athleteName: text("athlete_name").notNull(),
+  dateOfBirth: text("date_of_birth"),
+  fidalCard: text("fidal_card"),
+  subscriptionType: text("subscription_type"),
   type: text("type").notNull(), // 'pagamento', 'certificato', 'tabella'
   description: text("description").notNull(),
   date: timestamp("date").notNull(),
