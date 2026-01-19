@@ -149,18 +149,18 @@ export class BotService {
         const quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
         await message.reply(quote);
       } else if (content.startsWith('!info ')) {
-        const name = content.replace('!info ', '').trim();
-        if (!name) {
+        const nameInput = content.replace('!info ', '').trim();
+        if (!nameInput) {
           await message.reply('Specifica il nome dell\'atleta. Es: `!info Mario Rossi`');
           return;
         }
 
-        const deadlines = await storage.getDeadlinesByAthlete(name);
+        const deadlines = await storage.getDeadlinesByAthlete(nameInput);
         if (deadlines.length === 0) {
-          await message.reply(`Nessuna informazione trovata per l'atleta "${name}".`);
+          await message.reply(`Nessuna informazione trovata per l'atleta "${nameInput}". Assicurati di aver scritto il nome correttamente come nel foglio Google.`);
         } else {
           const first = deadlines[0];
-          let reply = `📋 **Scheda Atleta: ${name}**\n`;
+          let reply = `📋 **Scheda Atleta: ${first.athleteName}**\n`;
           reply += `- **Data di Nascita**: ${first.dateOfBirth || 'N/D'}\n`;
           reply += `- **Tessera FIDAL**: ${first.fidalCard || 'N/D'}\n`;
           reply += `- **Tipo Abbonamento**: ${first.subscriptionType || 'N/D'}\n\n`;
@@ -178,17 +178,18 @@ export class BotService {
           await message.reply(reply);
         }
       } else if (content.startsWith('!scadenza')) {
-        const name = content.replace('!scadenza', '').trim();
-        if (!name) {
+        const nameInput = content.replace('!scadenza', '').trim();
+        if (!nameInput) {
           await message.reply('Specifica il nome dell\'atleta. Es: `!scadenza Mario Rossi`');
           return;
         }
 
-        const deadlines = await storage.getDeadlinesByAthlete(name);
+        const deadlines = await storage.getDeadlinesByAthlete(nameInput);
         if (deadlines.length === 0) {
-          await message.reply(`Nessuna scadenza trovata per l'atleta "${name}".`);
+          await message.reply(`Nessuna scadenza trovata per l'atleta "${nameInput}".`);
         } else {
-          let reply = `Scadenze per **${name}**:\n`;
+          const first = deadlines[0];
+          let reply = `Scadenze per **${first.athleteName}**:\n`;
           for (const d of deadlines) {
             const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             let status = "";
@@ -214,22 +215,23 @@ export class BotService {
 
         for (const kw of keywords) {
           if (content.startsWith(kw.key)) {
-            const name = content.replace(kw.key, '').trim();
-            if (!name) continue;
+            const nameInput = content.replace(kw.key, '').trim();
+            if (!nameInput) continue;
 
-            const deadlines = await storage.getDeadlinesByAthlete(name);
+            const deadlines = await storage.getDeadlinesByAthlete(nameInput);
             if (deadlines.length > 0) {
               const first = deadlines[0];
+              const athleteNameFound = first.athleteName;
               if ('field' in kw) {
                 const val = (first as any)[(kw as any).field];
-                await message.reply(`La **${kw.label}** di **${name}** è: ${val || 'N/D'}`);
+                await message.reply(`La **${kw.label}** di **${athleteNameFound}** è: ${val || 'N/D'}`);
               } else if ('type' in kw) {
                 const d = deadlines.find(dl => dl.type === (kw as any).type);
                 if (d) {
                   const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  await message.reply(`La **${kw.label}** di **${name}** è il **${d.date.toLocaleDateString()}** (tra ${diffDays} giorni).`);
+                  await message.reply(`La **${kw.label}** di **${athleteNameFound}** è il **${d.date.toLocaleDateString()}** (tra ${diffDays} giorni).`);
                 } else {
-                  await message.reply(`Non ho trovato una ${kw.label} per **${name}**.`);
+                  await message.reply(`Non ho trovato una ${kw.label} per **${athleteNameFound}**.`);
                 }
               }
               return;

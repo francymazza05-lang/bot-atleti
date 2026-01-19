@@ -13,7 +13,7 @@ import {
   type InsertDeadline,
   type Deadline,
 } from "@shared/schema";
-import { eq, desc, lte, and } from "drizzle-orm";
+import { eq, desc, lte, and, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // Logs
@@ -105,7 +105,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDeadlinesByAthlete(name: string): Promise<Deadline[]> {
-    return await db.select().from(deadlines).where(eq(deadlines.athleteName, name));
+    return await db.select().from(deadlines).where(ilike(deadlines.athleteName, name));
   }
 
   async clearAllDeadlines(): Promise<void> {
