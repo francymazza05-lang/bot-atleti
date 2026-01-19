@@ -240,8 +240,35 @@ export class BotService {
     });
   }
 
-  private async sendAdminNotification(text: string) {
+  private async sendAdminNotification(text: string, type?: string) {
     const ownerId = (await storage.getSetting("ownerId"))?.value;
+    
+    // Prova a inviare nel canale specifico se definito
+    if (type) {
+      const channelMap: Record<string, string> = {
+        'certificato': 'scadenza-visite',
+        'pagamento': 'scadenze-pagamenti',
+        'tabella': 'scadenze-tabelle'
+      };
+      
+      const channelName = channelMap[type];
+      if (channelName) {
+        const guild = this.client.guilds.cache.first(); // Prende il primo server in cui si trova il bot
+        if (guild) {
+          const channel = guild.channels.cache.find(c => c.name === channelName && c.isTextBased());
+          if (channel) {
+            try {
+              await (channel as TextChannel).send(text);
+              return; // Notifica inviata al canale, saltiamo il DM
+            } catch (e) {
+              console.error(`Failed to send to channel ${channelName}`, e);
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: invia DM all'admin
     if (ownerId) {
       try {
         const owner = await this.client.users.fetch(ownerId);
@@ -279,7 +306,7 @@ export class BotService {
         }
 
         if (level && msg) {
-          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`);
+          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
           await storage.markDeadlineNotified(d.id, level);
         }
       }
