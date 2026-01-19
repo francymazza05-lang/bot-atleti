@@ -4,10 +4,28 @@ import { z } from "zod";
 
 export const logs = pgTable("logs", {
   id: serial("id").primaryKey(),
-  action: text("action").notNull(), // e.g., "Command Executed", "User Joined"
+  action: text("action").notNull(),
   details: text("details").notNull(),
   username: text("username"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const workouts = pgTable("workouts", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  username: text("username").notNull(),
+  exercise: text("exercise").notNull(),
+  result: text("result").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const deadlines = pgTable("deadlines", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(), // 'medical', 'training_plan', etc.
+  description: text("description").notNull(),
+  date: timestamp("date").notNull(),
+  notified: boolean("notified").default(false),
 });
 
 export const settings = pgTable("settings", {
@@ -17,10 +35,16 @@ export const settings = pgTable("settings", {
 });
 
 export const insertLogSchema = createInsertSchema(logs).omit({ id: true, createdAt: true });
+export const insertWorkoutSchema = createInsertSchema(workouts).omit({ id: true, createdAt: true });
+export const insertDeadlineSchema = createInsertSchema(deadlines).omit({ id: true, notified: true });
 export const insertSettingSchema = createInsertSchema(settings).omit({ id: true });
 
 export type Log = typeof logs.$inferSelect;
 export type InsertLog = z.infer<typeof insertLogSchema>;
+export type Workout = typeof workouts.$inferSelect;
+export type InsertWorkout = z.infer<typeof insertWorkoutSchema>;
+export type Deadline = typeof deadlines.$inferSelect;
+export type InsertDeadline = z.infer<typeof insertDeadlineSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 

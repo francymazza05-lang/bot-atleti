@@ -2,12 +2,18 @@ import { db } from "./db";
 import {
   logs,
   settings,
+  workouts,
+  deadlines,
   type InsertLog,
   type Log,
   type InsertSetting,
   type Setting,
+  type InsertWorkout,
+  type Workout,
+  type InsertDeadline,
+  type Deadline,
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, lte, and } from "drizzle-orm";
 
 export interface IStorage {
   // Logs
@@ -18,6 +24,15 @@ export interface IStorage {
   getSettings(): Promise<Setting[]>;
   getSetting(key: string): Promise<Setting | undefined>;
   updateSetting(key: string, value: string): Promise<Setting>;
+
+  // Workouts
+  getWorkouts(userId: string): Promise<Workout[]>;
+  createWorkout(workout: InsertWorkout): Promise<Workout>;
+
+  // Deadlines
+  getUpcomingDeadlines(): Promise<Deadline[]>;
+  createDeadline(deadline: InsertDeadline): Promise<Deadline>;
+  markDeadlineNotified(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -59,6 +74,33 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  async getWorkouts(userId: string): Promise<Workout[]> {
+    return await db.select().from(workouts).where(eq(workouts.userId, userId)).orderBy(desc(workouts.createdAt));
+  }
+
+  async createWorkout(workout: InsertWorkout): Promise<Workout> {
+    const [newWorkout] = await db.insert(workouts).values(workout).returning();
+    return newWorkout;
+  }
+
+  async getUpcomingDeadlines(): Promise<Deadline[]> {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    return await db
+      .select()
+      .from(deadlines)
+      .where(and(eq(deadlines.notified, false), lte(deadlines.date, threeDaysFromNow)));
+  }
+
+  async createDeadline(deadline: InsertDeadline): Promise<Deadline> {
+    const [newDeadline] = await db.insert(deadlines).values(deadline).returning();
+    return newDeadline;
+  }
+
+  async markDeadlineNotified(id: number): Promise<void> {
+    await db.update(deadlines).set({ notified: true }).where(eq(deadlines.id, id));
   }
 }
 

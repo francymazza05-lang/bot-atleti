@@ -53,7 +53,23 @@ export async function registerRoutes(
   if (existingSettings.length === 0) {
     await storage.updateSetting("prefix", "!");
     await storage.updateSetting("ownerId", "YOUR_ID_HERE");
-    await storage.updateSetting("statusMessage", "Serving commands!");
+    await storage.updateSetting("statusMessage", "Serving athletes!");
+    
+    // Seed some initial data for demonstration
+    // Note: These use dummy IDs for illustration
+    await storage.createDeadline({
+      userId: "123456789", // Replace with real Discord ID
+      type: "medical",
+      description: "Medical Check-up",
+      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
+    });
+    
+    await storage.createDeadline({
+      userId: "123456789",
+      type: "training_plan",
+      description: "Training Plan Renewal",
+      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) // 5 days from now
+    });
   }
 
   if (token) {
