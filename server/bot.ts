@@ -67,24 +67,25 @@ export class BotService {
           const athleteName = (row["NOME"] || row["nome dell'atleta"] || row["Atleta"] || "").trim();
           if (!athleteName) continue;
 
+          const dobValue = row["DATA DI NASCITA"] || row["data di nascita"] || row["Data di nascita"] || row["Data di Nascita"] || row["DATA DI NASCITA "];
+          
           if (!athleteDataMap.has(athleteName)) {
             athleteDataMap.set(athleteName, {
-              dateOfBirth: row["DATA DI NASCITA"] || row["data di nascita"] || null,
-              fidalCard: row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || null,
-              subscriptionType: row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"] || null,
+              dateOfBirth: (dobValue && String(dobValue).trim()) || null,
+              fidalCard: (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || "").trim() || null,
+              subscriptionType: (row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"] || "").trim() || null,
               deadlines: []
             });
           } else {
-            // Update fields if they are missing but present in this row
             const existing = athleteDataMap.get(athleteName);
-            if (!existing.dateOfBirth && (row["DATA DI NASCITA"] || row["data di nascita"])) {
-              existing.dateOfBirth = row["DATA DI NASCITA"] || row["data di nascita"];
+            if (!existing.dateOfBirth && dobValue) existing.dateOfBirth = String(dobValue).trim();
+            if (!existing.fidalCard) {
+              const fidal = (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || "").trim();
+              if (fidal) existing.fidalCard = fidal;
             }
-            if (!existing.fidalCard && (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"])) {
-              existing.fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"];
-            }
-            if (!existing.subscriptionType && (row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"])) {
-              existing.subscriptionType = row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"];
+            if (!existing.subscriptionType) {
+              const sub = (row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"] || "").trim();
+              if (sub) existing.subscriptionType = sub;
             }
           }
 
