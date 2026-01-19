@@ -1,9 +1,10 @@
 import { useSettings, useUpdateSetting } from "@/hooks/use-dashboard";
 import { Sidebar } from "@/components/Sidebar";
-import { Settings as SettingsIcon, Save, Key, Command, Lock, Bot } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Settings as SettingsIcon, Save, Key, Command, Lock, Bot, FileSpreadsheet, Upload } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { api, buildUrl } from "@shared/routes";
 
 interface SettingFieldProps {
   label: string;
@@ -78,6 +79,84 @@ function SettingField({ label, settingKey, description, icon, placeholder, type 
   );
 }
 
+function ExcelImportCard() {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(api.deadlines.upload.path, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Errore durante l'importazione");
+
+      const result = await response.json();
+      toast({
+        title: "Importazione Completata",
+        description: `Caricate con successo ${result.count} scadenze dal file Excel.`,
+        className: "bg-secondary text-black font-bold border-none",
+      });
+      
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      toast({
+        title: "Errore Importazione",
+        description: "Assicurati che il file sia un .xlsx valido con le colonne richieste.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 bg-card/40 border border-white/10 rounded-xl hover:border-primary/30 transition-all duration-300 backdrop-blur-sm group">
+      <div className="flex gap-4">
+        <div className="p-3 bg-black/20 rounded-lg border border-white/5 text-primary h-fit">
+          <FileSpreadsheet className="w-6 h-6" />
+        </div>
+        <div className="flex-1 space-y-4">
+          <div>
+            <h3 className="font-display font-bold tracking-wide text-lg">Importazione Scadenze Excel</h3>
+            <p className="text-sm text-muted-foreground">
+              Carica un file .xlsx per importare scadenze in massa. Colonne richieste: 
+              <span className="text-primary font-mono ml-1">Atleta, Scadenza, Descrizione, Data</span>
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <input
+              type="file"
+              accept=".xlsx"
+              ref={fileInputRef}
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex-1 bg-black/20 border border-white/10 rounded-lg px-4 py-2 flex items-center justify-center gap-2 hover:border-primary/50 transition-all text-sm text-white"
+            >
+              <Upload className="w-4 h-4" />
+              {isUploading ? "CARICAMENTO..." : "SELEZIONA FILE EXCEL (.xlsx)"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { data: settings, isLoading } = useSettings();
   const updateSetting = useUpdateSetting();
@@ -131,6 +210,8 @@ export default function Settings() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
+            <ExcelImportCard />
+
             <SettingField
               label="Command Prefix"
               settingKey="prefix"
