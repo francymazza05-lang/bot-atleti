@@ -51,6 +51,16 @@ export const api = {
         }),
       },
     },
+  },
+  deadlines: {
+    upload: {
+      method: 'POST' as const,
+      path: '/api/deadlines/upload',
+      responses: {
+        200: z.object({ message: z.string(), count: z.number() }),
+        400: errorSchemas.internal,
+      },
+    },
   }
 };
 

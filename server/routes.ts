@@ -4,11 +4,47 @@ import { storage } from "./storage";
 import { bot } from "./bot";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import multer from "multer";
+import * as xlsx from "xlsx";
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Excel Upload API
+  app.post(api.deadlines.upload.path, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = xlsx.utils.sheet_to_json(sheet) as any[];
+
+      let count = 0;
+      for (const row of data) {
+        // Expected columns: userId, type, description, date
+        if (row.userId && row.type && row.description && row.date) {
+          await storage.createDeadline({
+            userId: String(row.userId),
+            type: String(row.type),
+            description: String(row.description),
+            date: new Date(row.date),
+          });
+          count++;
+        }
+      }
+
+      res.json({ message: "Import successful", count });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to parse Excel file" });
+    }
+  });
+
   // Logs API
   app.get(api.logs.list.path, async (req, res) => {
     const logs = await storage.getLogs();
