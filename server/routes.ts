@@ -7,14 +7,20 @@ import { z } from "zod";
 import multer from "multer";
 import * as xlsx from "xlsx";
 
+import { Request } from "express";
+
 const upload = multer({ storage: multer.memoryStorage() });
+
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   // Excel Upload API
-  app.post(api.deadlines.upload.path, upload.single("file"), async (req, res) => {
+  app.post(api.deadlines.upload.path, upload.single("file"), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
