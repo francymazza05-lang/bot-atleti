@@ -69,20 +69,22 @@ export class BotService {
 
           if (!athleteDataMap.has(athleteName)) {
             athleteDataMap.set(athleteName, {
-              dateOfBirth: row["DATA DI NASCITA"] || null,
-              fidalCard: row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || null,
-              subscriptionType: row["TIPO DI ABBONAMENTO"] || null,
+              dateOfBirth: row["DATA DI NASCITA"] || row["data di nascita"] || null,
+              fidalCard: row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || null,
+              subscriptionType: row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"] || null,
               deadlines: []
             });
           } else {
             // Update fields if they are missing but present in this row
             const existing = athleteDataMap.get(athleteName);
-            if (!existing.dateOfBirth && row["DATA DI NASCITA"]) existing.dateOfBirth = row["DATA DI NASCITA"];
-            if (!existing.fidalCard && (row["TESSERA FIDAL"] || row["TESSERA FIDAL "])) {
-              existing.fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "];
+            if (!existing.dateOfBirth && (row["DATA DI NASCITA"] || row["data di nascita"])) {
+              existing.dateOfBirth = row["DATA DI NASCITA"] || row["data di nascita"];
             }
-            if (!existing.subscriptionType && row["TIPO DI ABBONAMENTO"]) {
-              existing.subscriptionType = row["TIPO DI ABBONAMENTO"];
+            if (!existing.fidalCard && (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"])) {
+              existing.fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"];
+            }
+            if (!existing.subscriptionType && (row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"])) {
+              existing.subscriptionType = row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"];
             }
           }
 
