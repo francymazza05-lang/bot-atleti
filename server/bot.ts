@@ -62,12 +62,12 @@ export class BotService {
         
         let count = 0;
         for (const row of records as any[]) {
-          const athleteName = row["NOME"] || row["nome dell'atleta"] || row["Atleta"];
+          const athleteName = (row["NOME"] || row["nome dell'atleta"] || row["Atleta"] || "").trim();
           const dateOfBirth = row["DATA DI NASCITA"];
-          const fidalCard = row["TESSERA FIDAL"];
+          const fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "]; // Handle trailing space in column name
           const subscriptionType = row["TIPO DI ABBONAMENTO"];
           
-          const pagamentoDate = row["SCADENZA ABBONAMENTO"] || row["data di scadenza pagamento"];
+          const pagamentoDate = row["SCADENZA ABBONAMENTO"] || row["data di scadenza pagamento"] || row["SCADENZA PAGAMENTO"];
           const certificatoDate = row["SCADENZA CERTIFICATO"] || row["data di scadenza certificato medico"];
           const tabellaDate = row["SCADENZA TABELLA"] || row["data di scadenza tabella"];
 
