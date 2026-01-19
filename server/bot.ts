@@ -129,7 +129,7 @@ export class BotService {
                 const val = (first as any)[kw.field];
                 await message.reply(`La **${kw.label}** di **${name}** è: ${val || 'N/D'}`);
               } else if ('type' in kw) {
-                const d = deadlines.find(dl => dl.type === kw.type);
+                const d = deadlines.find(dl => dl.type === (kw as any).type);
                 if (d) {
                   const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                   await message.reply(`La **${kw.label}** di **${name}** è il **${d.date.toLocaleDateString()}** (tra ${diffDays} giorni).`);
