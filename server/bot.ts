@@ -38,9 +38,9 @@ export class BotService {
   }
 
   private async startSyncJob() {
-    // Run sync immediately on start, then every hour
+    // Run sync immediately on start, then every 5 minutes
     this.syncFromGoogleSheets().catch(console.error);
-    setInterval(() => this.syncFromGoogleSheets().catch(console.error), 60 * 60 * 1000);
+    setInterval(() => this.syncFromGoogleSheets().catch(console.error), 5 * 60 * 1000);
   }
 
   private async syncFromGoogleSheets() {
@@ -186,6 +186,13 @@ export class BotService {
       } else if (content === '!motivazione') {
         const quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
         await message.reply(quote);
+      } else if (content === '!sync') {
+        await message.reply('Sincronizzazione manuale avviata...');
+        this.syncFromGoogleSheets().then(() => {
+          message.reply('Sincronizzazione completata con successo!');
+        }).catch(err => {
+          message.reply(`Errore durante la sincronizzazione: ${err.message}`);
+        });
       } else if (content.startsWith('!info ')) {
         const nameInput = content.replace('!info ', '').trim();
         if (!nameInput) {
