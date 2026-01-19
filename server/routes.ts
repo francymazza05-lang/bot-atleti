@@ -33,20 +33,40 @@ export async function registerRoutes(
 
       let count = 0;
       for (const row of data) {
-        // Mappa le colonne del foglio Google (Atleta, Scadenza, Descrizione, Data)
-        const userId = row.userId || row["Atleta"] || row["Discord ID"];
-        const type = row.type || row["Scadenza"] || row["Tipo"];
-        const description = row.description || row["Descrizione"];
-        const dateStr = row.date || row["Data"];
+        // Mappa le colonne specifiche: nome dell'atleta, data di scadenza pagamento, data di scadenza certificato medico, data di scadenza tabella
+        const athleteName = row["nome dell'atleta"] || row["Atleta"];
+        const pagamentoDate = row["data di scadenza pagamento"];
+        const certificatoDate = row["data di scadenza certificato medico"];
+        const tabellaDate = row["data di scadenza tabella"];
 
-        if (userId && type && description && dateStr) {
-          await storage.createDeadline({
-            userId: String(userId),
-            type: String(type),
-            description: String(description),
-            date: new Date(dateStr),
-          });
-          count++;
+        if (athleteName) {
+          if (pagamentoDate) {
+            await storage.createDeadline({
+              athleteName: String(athleteName),
+              type: "pagamento",
+              description: "Scadenza Pagamento",
+              date: new Date(pagamentoDate),
+            });
+            count++;
+          }
+          if (certificatoDate) {
+            await storage.createDeadline({
+              athleteName: String(athleteName),
+              type: "certificato",
+              description: "Scadenza Certificato Medico",
+              date: new Date(certificatoDate),
+            });
+            count++;
+          }
+          if (tabellaDate) {
+            await storage.createDeadline({
+              athleteName: String(athleteName),
+              type: "tabella",
+              description: "Scadenza Tabella",
+              date: new Date(tabellaDate),
+            });
+            count++;
+          }
         }
       }
 
@@ -105,16 +125,16 @@ export async function registerRoutes(
     // Seed some initial data for demonstration
     // Note: These use dummy IDs for illustration
     await storage.createDeadline({
-      userId: "123456789", // Replace with real Discord ID
-      type: "medical",
-      description: "Medical Check-up",
+      athleteName: "Mario Rossi",
+      type: "certificato",
+      description: "Scadenza Certificato Medico",
       date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
     });
     
     await storage.createDeadline({
-      userId: "123456789",
-      type: "training_plan",
-      description: "Training Plan Renewal",
+      athleteName: "Luigi Verdi",
+      type: "pagamento",
+      description: "Scadenza Pagamento",
       date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) // 5 days from now
     });
   }

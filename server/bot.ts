@@ -38,11 +38,6 @@ export class BotService {
     this.client.once(Events.ClientReady, (readyClient) => {
       console.log(`Ready! Logged in as ${readyClient.user.tag}`);
       this.isConnected = true;
-      storage.createLog({
-        action: "Bot Started",
-        details: `Logged in as ${readyClient.user.tag}`,
-        username: "System"
-      });
     });
 
     this.client.on(Events.MessageCreate, async (message) => {
@@ -58,49 +53,74 @@ export class BotService {
       } else if (content === '!motivazione') {
         const quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
         await message.reply(quote);
-      } else if (content.startsWith('!risultato')) {
-        const result = content.replace('!risultato', '').trim();
-        if (!result) {
-          const lastWorkouts = await storage.getWorkouts(message.author.id);
-          if (lastWorkouts.length > 0) {
-            await message.reply(`Il tuo ultimo risultato: ${lastWorkouts[0].result}`);
-          } else {
-            await message.reply('Non hai ancora inserito nessun risultato! Usa `!risultato [dettagli del tuo allenamento]`');
-          }
-        } else {
-          await storage.createWorkout({
-            userId: message.author.id,
-            username: message.author.tag,
-            exercise: "Allenamento",
-            result: result
-          });
-          await message.reply('Risultato salvato! Ottimo lavoro.');
+      } else if (content.startsWith('!scadenza')) {
+        const name = content.replace('!scadenza', '').trim();
+        if (!name) {
+          await message.reply('Specifica il nome dell\'atleta. Es: `!scadenza Mario Rossi`');
+          return;
         }
-      } else if (content === '!calendario') {
-        await message.reply("Prossimi Eventi di Allenamento:\n- Lun: Sprint Training (18:00)\n- Mer: Corsa di resistenza (07:00)\n- Sab: Partita di squadra (10:00)");
+
+        const deadlines = await storage.getDeadlinesByAthlete(name);
+        if (deadlines.length === 0) {
+          await message.reply(`Nessuna scadenza trovata per l'atleta "${name}".`);
+        } else {
+          let reply = `Scadenze per **${name}**:\n`;
+          for (const d of deadlines) {
+            const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            let status = "";
+            if (diffDays < 0) status = " (SCADUTA)";
+            else if (diffDays === 0) status = " (SCADE OGGI)";
+            else status = ` (scade tra ${diffDays} giorni)`;
+            
+            reply += `- **${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+          }
+          await message.reply(reply);
+        }
       }
     });
+  }
+
+  private async sendAdminNotification(text: string) {
+    const ownerId = (await storage.getSetting("ownerId"))?.value;
+    if (ownerId) {
+      try {
+        const owner = await this.client.users.fetch(ownerId);
+        if (owner) await owner.send(text);
+      } catch (e) {
+        console.error("Failed to send notification to owner", e);
+      }
+    }
   }
 
   private startReminderCheck() {
     setInterval(async () => {
       if (!this.isConnected) return;
 
+      const now = Date.now();
       const deadlines = await storage.getUpcomingDeadlines();
-      for (const deadline of deadlines) {
-        try {
-          const user = await this.client.users.fetch(deadline.userId);
-          if (user) {
-            await user.send(`🚨 Promemoria: La tua scadenza per "${deadline.description}" è prevista per il ${deadline.date.toLocaleDateString()}!`);
-            await storage.markDeadlineNotified(deadline.id);
-            await storage.createLog({
-              action: "Reminder Sent",
-              details: `Sent ${deadline.type} reminder to ${user.tag}`,
-              username: "System"
-            });
-          }
-        } catch (error) {
-          console.error(`Failed to send reminder to ${deadline.userId}:`, error);
+      
+      for (const d of deadlines) {
+        const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
+        let level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay' | null = null;
+        let msg = "";
+
+        if (diffDays === 30 && !d.notifiedOneMonth) {
+          level = 'oneMonth';
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 1 mese (${d.date.toLocaleDateString()}).`;
+        } else if (diffDays === 10 && !d.notifiedTenDays) {
+          level = 'tenDays';
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 10 giorni (${d.date.toLocaleDateString()}).`;
+        } else if (diffDays === 3 && !d.notifiedThreeDays) {
+          level = 'threeDays';
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 3 giorni (${d.date.toLocaleDateString()}).`;
+        } else if (diffDays === 1 && !d.notifiedOneDay) {
+          level = 'oneDay';
+          msg = `Il ${d.description} di **${d.athleteName}** scade DOMANI (${d.date.toLocaleDateString()}).`;
+        }
+
+        if (level && msg) {
+          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`);
+          await storage.markDeadlineNotified(d.id, level);
         }
       }
     }, 60 * 60 * 1000); // Check every hour

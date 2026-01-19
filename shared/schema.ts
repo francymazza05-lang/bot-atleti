@@ -21,11 +21,14 @@ export const workouts = pgTable("workouts", {
 
 export const deadlines = pgTable("deadlines", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
-  type: text("type").notNull(), // 'medical', 'training_plan', etc.
+  athleteName: text("athlete_name").notNull(),
+  type: text("type").notNull(), // 'pagamento', 'certificato', 'tabella'
   description: text("description").notNull(),
   date: timestamp("date").notNull(),
-  notified: boolean("notified").default(false),
+  notifiedOneMonth: boolean("notified_one_month").default(false),
+  notifiedTenDays: boolean("notified_ten_days").default(false),
+  notifiedThreeDays: boolean("notified_three_days").default(false),
+  notifiedOneDay: boolean("notified_one_day").default(false),
 });
 
 export const settings = pgTable("settings", {
@@ -36,7 +39,13 @@ export const settings = pgTable("settings", {
 
 export const insertLogSchema = createInsertSchema(logs).omit({ id: true, createdAt: true });
 export const insertWorkoutSchema = createInsertSchema(workouts).omit({ id: true, createdAt: true });
-export const insertDeadlineSchema = createInsertSchema(deadlines).omit({ id: true, notified: true });
+export const insertDeadlineSchema = createInsertSchema(deadlines).omit({ 
+  id: true,
+  notifiedOneMonth: true,
+  notifiedTenDays: true,
+  notifiedThreeDays: true,
+  notifiedOneDay: true
+});
 export const insertSettingSchema = createInsertSchema(settings).omit({ id: true });
 
 export type Log = typeof logs.$inferSelect;

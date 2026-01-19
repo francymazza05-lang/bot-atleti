@@ -32,7 +32,8 @@ export interface IStorage {
   // Deadlines
   getUpcomingDeadlines(): Promise<Deadline[]>;
   createDeadline(deadline: InsertDeadline): Promise<Deadline>;
-  markDeadlineNotified(id: number): Promise<void>;
+  markDeadlineNotified(id: number, level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay'): Promise<void>;
+  getDeadlinesByAthlete(name: string): Promise<Deadline[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,12 +87,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUpcomingDeadlines(): Promise<Deadline[]> {
-    const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-    return await db
-      .select()
-      .from(deadlines)
-      .where(and(eq(deadlines.notified, false), lte(deadlines.date, threeDaysFromNow)));
+    return await db.select().from(deadlines);
   }
 
   async createDeadline(deadline: InsertDeadline): Promise<Deadline> {
@@ -99,8 +95,17 @@ export class DatabaseStorage implements IStorage {
     return newDeadline;
   }
 
-  async markDeadlineNotified(id: number): Promise<void> {
-    await db.update(deadlines).set({ notified: true }).where(eq(deadlines.id, id));
+  async markDeadlineNotified(id: number, level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay'): Promise<void> {
+    const update: any = {};
+    if (level === 'oneMonth') update.notifiedOneMonth = true;
+    if (level === 'tenDays') update.notifiedTenDays = true;
+    if (level === 'threeDays') update.notifiedThreeDays = true;
+    if (level === 'oneDay') update.notifiedOneDay = true;
+    await db.update(deadlines).set(update).where(eq(deadlines.id, id));
+  }
+
+  async getDeadlinesByAthlete(name: string): Promise<Deadline[]> {
+    return await db.select().from(deadlines).where(eq(deadlines.athleteName, name));
   }
 }
 
