@@ -218,7 +218,12 @@ export class BotService {
             else if (diffDays === 0) status = " (SCADE OGGI)";
             else status = ` (tra ${diffDays} gg)`;
             
-            reply += `- **${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+            let emoji = "";
+            if (d.type === 'tabella') emoji = "📄 ";
+            else if (d.type === 'pagamento') emoji = "💰 ";
+            else if (d.type === 'certificato') emoji = "🧬 ";
+
+            reply += `- ${emoji}**${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
           }
           await message.reply(reply);
         }
@@ -242,7 +247,12 @@ export class BotService {
             else if (diffDays === 0) status = " (SCADE OGGI)";
             else status = ` (scade tra ${diffDays} giorni)`;
             
-            reply += `- **${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+            let emoji = "";
+            if (d.type === 'tabella') emoji = "📄 ";
+            else if (d.type === 'pagamento') emoji = "💰 ";
+            else if (d.type === 'certificato') emoji = "🧬 ";
+
+            reply += `- ${emoji}**${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
           }
           await message.reply(reply);
         }
