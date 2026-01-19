@@ -2,19 +2,19 @@ import { Client, GatewayIntentBits, Events, TextChannel } from 'discord.js';
 import { storage } from './storage';
 
 const MOTIVATIONAL_QUOTES = [
-  "The only way to prove that you’re a good sport is to lose.",
-  "Age is no barrier. It’s a limitation you put on your mind.",
-  "You miss 100% of the shots you don’t take.",
-  "Winning isn’t everything, but wanting to win is.",
-  "I’ve failed over and over and over again in my life. And that is why I succeed."
+  "L'unico modo per dimostrare di essere un buon sportivo è perdere.",
+  "L'età non è una barriera. È un limite che poni alla tua mente.",
+  "Sbagli il 100% dei colpi che non tiri.",
+  "Vincere non è tutto, ma voler vincere sì.",
+  "Ho fallito più e più volte nella mia vita. Ed è per questo che ho successo."
 ];
 
 const TRAINING_SUGGESTIONS = [
-  "Today is a great day for 5km run!",
-  "Leg day! Focus on squats and lunges.",
-  "Rest day. Make sure to hydrate and stretch.",
-  "Upper body strength: Push-ups, pull-ups, and dips.",
-  "HIIT Session: 20 minutes of intense intervals."
+  "Oggi è un ottimo giorno per una corsa di 5km!",
+  "Giorno delle gambe! Concentrati su squat e affondi.",
+  "Giorno di riposo. Assicurati di idratarti e fare stretching.",
+  "Forza della parte superiore del corpo: Flessioni, trazioni e dip.",
+  "Sessione HIIT: 20 minuti di intervalli intensi."
 ];
 
 export class BotService {
@@ -63,21 +63,21 @@ export class BotService {
         if (!result) {
           const lastWorkouts = await storage.getWorkouts(message.author.id);
           if (lastWorkouts.length > 0) {
-            await message.reply(`Your latest workout result: ${lastWorkouts[0].result}`);
+            await message.reply(`Il tuo ultimo risultato: ${lastWorkouts[0].result}`);
           } else {
-            await message.reply('You haven\'t entered any results yet! Use `!risultato [your workout details]`');
+            await message.reply('Non hai ancora inserito nessun risultato! Usa `!risultato [dettagli del tuo allenamento]`');
           }
         } else {
           await storage.createWorkout({
             userId: message.author.id,
             username: message.author.tag,
-            exercise: "Workout",
+            exercise: "Allenamento",
             result: result
           });
-          await message.reply('Workout result saved! Great job.');
+          await message.reply('Risultato salvato! Ottimo lavoro.');
         }
       } else if (content === '!calendario') {
-        await message.reply("Upcoming Training Events:\n- Mon: Sprint Training (6:00 PM)\n- Wed: Endurance Run (7:00 AM)\n- Sat: Team Match (10:00 AM)");
+        await message.reply("Prossimi Eventi di Allenamento:\n- Lun: Sprint Training (18:00)\n- Mer: Corsa di resistenza (07:00)\n- Sab: Partita di squadra (10:00)");
       }
     });
   }
@@ -91,7 +91,7 @@ export class BotService {
         try {
           const user = await this.client.users.fetch(deadline.userId);
           if (user) {
-            await user.send(`🚨 Reminder: Your ${deadline.description} is coming up on ${deadline.date.toLocaleDateString()}!`);
+            await user.send(`🚨 Promemoria: La tua scadenza per "${deadline.description}" è prevista per il ${deadline.date.toLocaleDateString()}!`);
             await storage.markDeadlineNotified(deadline.id);
             await storage.createLog({
               action: "Reminder Sent",
