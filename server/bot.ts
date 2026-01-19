@@ -57,62 +57,98 @@ export class BotService {
 
       if (records.length > 0) {
         // Clear existing deadlines before sync to avoid duplicates
-        // In a production app, we might want to do a more smart merge (upsert)
         await (storage as any).clearAllDeadlines();
         
         let count = 0;
+        // Pre-process records to group by athlete name to ensure we get DOB and Fidal
+        const athleteDataMap = new Map();
+
         for (const row of records as any[]) {
           const athleteName = (row["NOME"] || row["nome dell'atleta"] || row["Atleta"] || "").trim();
-          const dateOfBirth = row["DATA DI NASCITA"];
-          const fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "]; // Handle trailing space in column name
-          const subscriptionType = row["TIPO DI ABBONAMENTO"];
-          
+          if (!athleteName) continue;
+
+          if (!athleteDataMap.has(athleteName)) {
+            athleteDataMap.set(athleteName, {
+              dateOfBirth: row["DATA DI NASCITA"] || null,
+              fidalCard: row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || null,
+              subscriptionType: row["TIPO DI ABBONAMENTO"] || null,
+              deadlines: []
+            });
+          } else {
+            // Update fields if they are missing but present in this row
+            const existing = athleteDataMap.get(athleteName);
+            if (!existing.dateOfBirth && row["DATA DI NASCITA"]) existing.dateOfBirth = row["DATA DI NASCITA"];
+            if (!existing.fidalCard && (row["TESSERA FIDAL"] || row["TESSERA FIDAL "])) {
+              existing.fidalCard = row["TESSERA FIDAL"] || row["TESSERA FIDAL "];
+            }
+            if (!existing.subscriptionType && row["TIPO DI ABBONAMENTO"]) {
+              existing.subscriptionType = row["TIPO DI ABBONAMENTO"];
+            }
+          }
+
           const pagamentoDate = row["SCADENZA ABBONAMENTO"] || row["data di scadenza pagamento"] || row["SCADENZA PAGAMENTO"];
           const certificatoDate = row["SCADENZA CERTIFICATO"] || row["data di scadenza certificato medico"];
           const tabellaDate = row["SCADENZA TABELLA"] || row["data di scadenza tabella"];
 
-          if (athleteName) {
-            const baseData = {
-              athleteName: String(athleteName),
-              dateOfBirth: dateOfBirth ? String(dateOfBirth) : null,
-              fidalCard: fidalCard ? String(fidalCard) : null,
-              subscriptionType: subscriptionType ? String(subscriptionType) : null,
-            };
-
-            const parseDate = (d: string) => {
-              if (!d) return null;
-              // Handle DD/MM/YYYY format commonly used in Italy
-              const parts = d.split('/');
-              if (parts.length === 3) {
-                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-              }
-              return new Date(d);
-            };
-
-            if (pagamentoDate) {
-              const d = parseDate(pagamentoDate);
-              if (d && !isNaN(d.getTime())) {
-                await storage.createDeadline({ ...baseData, type: "pagamento", description: "Scadenza Abbonamento", date: d });
-                count++;
-              }
+          const parseDate = (d: string) => {
+            if (!d || typeof d !== 'string') return null;
+            const cleaned = d.trim();
+            if (!cleaned) return null;
+            // Handle DD/MM/YYYY
+            const parts = cleaned.split('/');
+            if (parts.length === 3) {
+              const day = parseInt(parts[0], 10);
+              const month = parseInt(parts[1], 10);
+              const year = parseInt(parts[2], 10);
+              return new Date(year, month - 1, day);
             }
-            if (certificatoDate) {
-              const d = parseDate(certificatoDate);
-              if (d && !isNaN(d.getTime())) {
-                await storage.createDeadline({ ...baseData, type: "certificato", description: "Scadenza Certificato Medico", date: d });
-                count++;
-              }
-            }
-            if (tabellaDate) {
-              const d = parseDate(tabellaDate);
-              if (d && !isNaN(d.getTime())) {
-                await storage.createDeadline({ ...baseData, type: "tabella", description: "Scadenza Tabella", date: d });
-                count++;
-              }
+            const parsed = new Date(cleaned);
+            return isNaN(parsed.getTime()) ? null : parsed;
+          };
+
+          if (pagamentoDate) {
+            const d = parseDate(pagamentoDate);
+            if (d) athleteDataMap.get(athleteName).deadlines.push({ type: "pagamento", desc: "Scadenza Abbonamento", date: d });
+          }
+          if (certificatoDate) {
+            const d = parseDate(certificatoDate);
+            if (d) athleteDataMap.get(athleteName).deadlines.push({ type: "certificato", desc: "Scadenza Certificato Medico", date: d });
+          }
+          if (tabellaDate) {
+            const d = parseDate(tabellaDate);
+            if (d) athleteDataMap.get(athleteName).deadlines.push({ type: "tabella", desc: "Scadenza Tabella", date: d });
+          }
+        }
+
+        for (const [athleteName, data] of athleteDataMap.entries()) {
+          const baseData = {
+            athleteName,
+            dateOfBirth: data.dateOfBirth ? String(data.dateOfBirth).trim() : null,
+            fidalCard: data.fidalCard ? String(data.fidalCard).trim() : null,
+            subscriptionType: data.subscriptionType ? String(data.subscriptionType).trim() : null,
+          };
+
+          if (data.deadlines.length === 0) {
+            await storage.createDeadline({
+              ...baseData,
+              type: "info",
+              description: "Informazioni Atleta",
+              date: new Date(0),
+            });
+            count++;
+          } else {
+            for (const dl of data.deadlines) {
+              await storage.createDeadline({
+                ...baseData,
+                type: (dl as any).type,
+                description: (dl as any).desc,
+                date: (dl as any).date,
+              });
+              count++;
             }
           }
         }
-        console.log(`Sync completed. Imported ${count} deadlines.`);
+        console.log(`Sync completed. Imported ${count} records for ${athleteDataMap.size} athletes.`);
         await storage.createLog({
           action: "Sync Google Sheets",
           details: `Importate con successo ${count} scadenze dal foglio Google.`,
