@@ -107,6 +107,10 @@ export class DatabaseStorage implements IStorage {
   async getDeadlinesByAthlete(name: string): Promise<Deadline[]> {
     return await db.select().from(deadlines).where(eq(deadlines.athleteName, name));
   }
+
+  async clearAllDeadlines(): Promise<void> {
+    await db.delete(deadlines);
+  }
 }
 
 export const storage = new DatabaseStorage();

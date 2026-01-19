@@ -1,5 +1,7 @@
 import { Client, GatewayIntentBits, Events, TextChannel } from 'discord.js';
 import { storage } from './storage';
+import axios from 'axios';
+import { parse } from 'csv-parse/sync';
 
 const MOTIVATIONAL_QUOTES = [
   "L'unico modo per dimostrare di essere un buon sportivo è perdere.",
@@ -32,6 +34,99 @@ export class BotService {
 
     this.setupListeners();
     this.startReminderCheck();
+    this.startSyncJob();
+  }
+
+  private async startSyncJob() {
+    // Run sync immediately on start, then every hour
+    this.syncFromGoogleSheets().catch(console.error);
+    setInterval(() => this.syncFromGoogleSheets().catch(console.error), 60 * 60 * 1000);
+  }
+
+  private async syncFromGoogleSheets() {
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSbsVcggwfWJlfxn7afuRr7lEvZV2UlQpoipGeiEY97VVqwwHwki79q8hjEaSAhhOMmh4KLNhIc-CMn/pub?output=csv";
+    
+    try {
+      console.log("Starting Google Sheets sync...");
+      const response = await axios.get(csvUrl);
+      const records = parse(response.data, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true
+      });
+
+      if (records.length > 0) {
+        // Clear existing deadlines before sync to avoid duplicates
+        // In a production app, we might want to do a more smart merge (upsert)
+        await (storage as any).clearAllDeadlines();
+        
+        let count = 0;
+        for (const row of records as any[]) {
+          const athleteName = row["NOME"] || row["nome dell'atleta"] || row["Atleta"];
+          const dateOfBirth = row["DATA DI NASCITA"];
+          const fidalCard = row["TESSERA FIDAL"];
+          const subscriptionType = row["TIPO DI ABBONAMENTO"];
+          
+          const pagamentoDate = row["SCADENZA ABBONAMENTO"] || row["data di scadenza pagamento"];
+          const certificatoDate = row["SCADENZA CERTIFICATO"] || row["data di scadenza certificato medico"];
+          const tabellaDate = row["SCADENZA TABELLA"] || row["data di scadenza tabella"];
+
+          if (athleteName) {
+            const baseData = {
+              athleteName: String(athleteName),
+              dateOfBirth: dateOfBirth ? String(dateOfBirth) : null,
+              fidalCard: fidalCard ? String(fidalCard) : null,
+              subscriptionType: subscriptionType ? String(subscriptionType) : null,
+            };
+
+            const parseDate = (d: string) => {
+              if (!d) return null;
+              // Handle DD/MM/YYYY format commonly used in Italy
+              const parts = d.split('/');
+              if (parts.length === 3) {
+                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+              }
+              return new Date(d);
+            };
+
+            if (pagamentoDate) {
+              const d = parseDate(pagamentoDate);
+              if (d && !isNaN(d.getTime())) {
+                await storage.createDeadline({ ...baseData, type: "pagamento", description: "Scadenza Abbonamento", date: d });
+                count++;
+              }
+            }
+            if (certificatoDate) {
+              const d = parseDate(certificatoDate);
+              if (d && !isNaN(d.getTime())) {
+                await storage.createDeadline({ ...baseData, type: "certificato", description: "Scadenza Certificato Medico", date: d });
+                count++;
+              }
+            }
+            if (tabellaDate) {
+              const d = parseDate(tabellaDate);
+              if (d && !isNaN(d.getTime())) {
+                await storage.createDeadline({ ...baseData, type: "tabella", description: "Scadenza Tabella", date: d });
+                count++;
+              }
+            }
+          }
+        }
+        console.log(`Sync completed. Imported ${count} deadlines.`);
+        await storage.createLog({
+          action: "Sync Google Sheets",
+          details: `Importate con successo ${count} scadenze dal foglio Google.`,
+          username: "System"
+        });
+      }
+    } catch (error: any) {
+      console.error("Error syncing with Google Sheets:", error.message);
+      await storage.createLog({
+        action: "Sync Error",
+        details: `Errore durante la sincronizzazione: ${error.message}`,
+        username: "System"
+      });
+    }
   }
 
   private setupListeners() {
@@ -126,7 +221,7 @@ export class BotService {
             if (deadlines.length > 0) {
               const first = deadlines[0];
               if ('field' in kw) {
-                const val = (first as any)[kw.field];
+                const val = (first as any)[(kw as any).field];
                 await message.reply(`La **${kw.label}** di **${name}** è: ${val || 'N/D'}`);
               } else if ('type' in kw) {
                 const d = deadlines.find(dl => dl.type === (kw as any).type);
