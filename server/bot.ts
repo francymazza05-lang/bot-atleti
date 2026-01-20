@@ -193,6 +193,17 @@ export class BotService {
 
       if (content === '!ping') {
         await message.reply('Pong!');
+      } else if (content === '!comandi') {
+        let helpMsg = '🤖 **Comandi Disponibili:**\n\n';
+        helpMsg += '`!atleta [nome]` o `!info [nome]` - Mostra la scheda completa e le scadenze dell\'atleta\n';
+        helpMsg += '`!scadenza [nome]` - Mostra solo l\'elenco delle scadenze di un atleta\n';
+        helpMsg += '`!sync` - Sincronizza manualmente i dati dal foglio Google\n';
+        helpMsg += '`!allenamento` - Ricevi un suggerimento di allenamento casuale\n';
+        helpMsg += '`!motivazione` - Ricevi una frase motivazionale\n';
+        helpMsg += '`!testpromemoria` - (Admin) Invia un test delle notifiche nei canali\n';
+        helpMsg += '`!ping` - Verifica se il bot è online\n\n';
+        helpMsg += '💡 *Puoi anche chiedere informazioni dirette, ad esempio: "tessera fidal Mario Rossi" o "scadenza certificato Mario Rossi"*';
+        await message.reply(helpMsg);
       } else if (content === '!allenamento') {
         const suggestion = TRAINING_SUGGESTIONS[Math.floor(Math.random() * TRAINING_SUGGESTIONS.length)];
         await message.reply(suggestion);
