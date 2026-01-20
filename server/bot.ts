@@ -241,11 +241,11 @@ export class BotService {
           const first = deadlines[0];
           let reply = `📋 **Scheda Atleta: ${first.athleteName}**\n`;
           
-          let dobVal = first.dateOfBirth;
+          let dobVal: any = first.dateOfBirth;
           if (dobVal && typeof dobVal === 'string') {
             // Se è già una stringa dd/mm/yyyy (come importata da GS) la lasciamo così
             // Altrimenti proviamo a formattarla se possibile
-          } else if (dobVal instanceof Date) {
+          } else if (dobVal && dobVal instanceof Date) {
             dobVal = formatDate(dobVal);
           }
           
@@ -362,18 +362,22 @@ export class BotService {
       if (config) {
         const guild = this.client.guilds.cache.first(); // Prende il primo server in cui si trova il bot
         if (guild) {
+          console.log(`[NOTIF] Searching for channel ${config.name} in guild ${guild.name}`);
           const channel = guild.channels.cache.find(c => {
-            const cName = c.name.toLowerCase().trim();
-            const configName = config.name.toLowerCase().trim();
+            const cName = c.name.toLowerCase().trim().replace(/^#/, '');
+            const configName = config.name.toLowerCase().trim().replace(/^#/, '');
             return cName === configName && c.isTextBased();
           });
           if (channel) {
             try {
+              console.log(`[NOTIF] Found channel ${channel.name}, sending message...`);
               await (channel as TextChannel).send(`${config.emoji} ${text}`);
               return; // Notifica inviata al canale, saltiamo il DM
             } catch (e) {
               console.error(`Failed to send to channel ${config.name}`, e);
             }
+          } else {
+            console.log(`[NOTIF] Channel ${config.name} not found. Available channels: ${Array.from(guild.channels.cache.filter(c => c.isTextBased()).values()).map(c => (c as any).name).join(', ')}`);
           }
         }
       }
