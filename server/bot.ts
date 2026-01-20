@@ -216,13 +216,18 @@ export class BotService {
         ];
 
         for (const d of fakeDeadlines) {
-          const dd = d.date.getDate().toString().padStart(2, '0');
-          const mm = (d.date.getMonth() + 1).toString().padStart(2, '0');
-          const yyyy = d.date.getFullYear();
-          const formattedDate = `${dd}/${mm}/${yyyy}`;
+          const formattedDate = formatDate(d.date);
           const diffDays = Math.ceil((d.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           
-          let msg = `Il ${d.desc} di **TEST ATLETA** scade tra ${diffDays} giorni (${formattedDate}).`;
+          let msg = "";
+          if (d.type === 'certificato') {
+            msg = `Il certificato di **TEST ATLETA** scade il **${formattedDate}** (tra ${diffDays} giorni).`;
+          } else if (d.type === 'tabella') {
+            msg = `La tabella di **TEST ATLETA** scade il **${formattedDate}** (tra ${diffDays} giorni).`;
+          } else if (d.type === 'pagamento') {
+            msg = `L'abbonamento di **TEST ATLETA** scade il **${formattedDate}** (tra ${diffDays} giorni).`;
+          }
+          
           console.log(`[TEST] Sending notification for ${d.type}: ${msg}`);
           await this.sendAdminNotification(`📢 **Promemoria Scadenza (TEST)**\n${msg}`, d.type);
         }
@@ -356,7 +361,7 @@ export class BotService {
     if (type) {
       const channelMap: Record<string, { name: string, emoji: string }> = {
         'certificato': { name: 'scadenza-visite', emoji: '🧬' },
-        'pagamento': { name: 'scadenze-pagamenti', emoji: '💸' },
+        'pagamento': { name: 'PAGAMENTI', emoji: '💸' },
         'tabella': { name: 'scadenze-tabelle', emoji: '📅' }
       };
       
@@ -366,11 +371,19 @@ export class BotService {
         if (guild) {
           console.log(`[NOTIF] Searching for channel ${config.name} in guild ${guild.name}`);
           const channel = guild.channels.cache.find(c => {
+            if (!c.isTextBased()) return false;
             const cName = c.name.toLowerCase().trim();
             const configName = config.name.toLowerCase().trim();
+            
             // Match if channel name contains the config name or vice versa (ignoring special chars)
             const cleanCName = cName.replace(/[^a-z0-9]/g, '');
             const cleanConfigName = configName.replace(/[^a-z0-9]/g, '');
+            
+            // Special case for PAGAMENTI as it's a common name and might be styled differently
+            if (config.name === 'PAGAMENTI') {
+              return cleanCName.includes('pagament');
+            }
+            
             return cleanCName.includes(cleanConfigName) || cleanConfigName.includes(cleanCName);
           });
           if (channel) {
@@ -402,6 +415,14 @@ export class BotService {
   }
 
   private startReminderCheck() {
+    const formatDate = (date: Date | null) => {
+      if (!date || date.getTime() === 0) return 'N/D';
+      const d = date.getDate().toString().padStart(2, '0');
+      const m = (date.getMonth() + 1).toString().padStart(2, '0');
+      const y = date.getFullYear();
+      return `${d}/${m}/${y}`;
+    };
+
     setInterval(async () => {
       if (!this.isConnected) return;
 
@@ -413,28 +434,31 @@ export class BotService {
         let level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay' | null = null;
         let msg = "";
 
-        const dd = d.date.getDate().toString().padStart(2, '0');
-        const mm = (d.date.getMonth() + 1).toString().padStart(2, '0');
-        const yyyy = d.date.getFullYear();
-        const formattedDate = `${dd}/${mm}/${yyyy}`;
+        const formattedDate = formatDate(d.date);
 
         if (diffDays === 30 && !d.notifiedOneMonth) {
           level = 'oneMonth';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 1 mese (${formattedDate}).`;
         } else if (diffDays === 10 && !d.notifiedTenDays) {
           level = 'tenDays';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 10 giorni (${formattedDate}).`;
         } else if (diffDays === 3 && !d.notifiedThreeDays) {
           level = 'threeDays';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 3 giorni (${formattedDate}).`;
         } else if (diffDays === 1 && !d.notifiedOneDay) {
           level = 'oneDay';
-          msg = `Il ${d.description} di **${d.athleteName}** scade DOMANI (${formattedDate}).`;
         }
 
-        if (level && msg) {
-          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
-          await storage.markDeadlineNotified(d.id, level);
+        if (level) {
+          if (d.type === 'certificato') {
+            msg = `Il certificato di **${d.athleteName}** scade il **${formattedDate}**.`;
+          } else if (d.type === 'tabella') {
+            msg = `La tabella di **${d.athleteName}** scade il **${formattedDate}**.`;
+          } else if (d.type === 'pagamento') {
+            msg = `L'abbonamento di **${d.athleteName}** scade il **${formattedDate}**.`;
+          }
+
+          if (msg) {
+            await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
+            await storage.markDeadlineNotified(d.id, level);
+          }
         }
       }
     }, 60 * 60 * 1000); // Check every hour
