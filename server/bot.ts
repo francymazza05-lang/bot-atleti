@@ -181,7 +181,7 @@ export class BotService {
     this.client.on(Events.MessageCreate, async (message) => {
       if (message.author.bot) return;
 
-      const content = message.content.toLowerCase();
+      const content = message.content.toLowerCase().trim();
       
       const formatDate = (date: Date | null) => {
         if (!date || date.getTime() === 0) return 'N/D';
@@ -223,6 +223,7 @@ export class BotService {
           const diffDays = Math.ceil((d.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           
           let msg = `Il ${d.desc} di **TEST ATLETA** scade tra ${diffDays} giorni (${formattedDate}).`;
+          console.log(`[TEST] Sending notification for ${d.type}: ${msg}`);
           await this.sendAdminNotification(`📢 **Promemoria Scadenza (TEST)**\n${msg}`, d.type);
         }
         await message.reply('Test promemoria completato. Controlla i canali dedicati!');
@@ -362,8 +363,9 @@ export class BotService {
         const guild = this.client.guilds.cache.first(); // Prende il primo server in cui si trova il bot
         if (guild) {
           const channel = guild.channels.cache.find(c => {
-            const cName = c.name.toLowerCase();
-            return cName === config.name && c.isTextBased();
+            const cName = c.name.toLowerCase().trim();
+            const configName = config.name.toLowerCase().trim();
+            return cName === configName && c.isTextBased();
           });
           if (channel) {
             try {
@@ -378,13 +380,15 @@ export class BotService {
     }
 
     // Fallback: invia DM all'admin
-    if (ownerId) {
+    if (ownerId && ownerId !== 'YOUR_ID_HERE') {
       try {
         const owner = await this.client.users.fetch(ownerId);
         if (owner) await owner.send(text);
       } catch (e) {
         console.error("Failed to send notification to owner", e);
       }
+    } else if (!type) {
+      console.warn("No ownerId configured and no type provided for notification.");
     }
   }
 
