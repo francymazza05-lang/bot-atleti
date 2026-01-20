@@ -182,6 +182,14 @@ export class BotService {
       if (message.author.bot) return;
 
       const content = message.content.toLowerCase();
+      
+      const formatDate = (date: Date | null) => {
+        if (!date || date.getTime() === 0) return 'N/D';
+        const d = date.getDate().toString().padStart(2, '0');
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const y = date.getFullYear();
+        return `${d}/${m}/${y}`;
+      };
 
       if (content === '!ping') {
         await message.reply('Pong!');
@@ -198,25 +206,36 @@ export class BotService {
         }).catch(err => {
           message.reply(`Errore durante la sincronizzazione: ${err.message}`);
         });
-      } else if (content.startsWith('!info ')) {
-        const nameInput = content.replace('!info ', '').trim();
+      } else if (content.startsWith('!atleta ')) {
+        const nameInput = content.replace('!atleta ', '').trim();
         if (!nameInput) {
-          await message.reply('Specifica il nome dell\'atleta. Es: `!info Mario Rossi`');
+          await message.reply('Specifica il nome dell\'atleta. Es: `!atleta Mario Rossi`');
           return;
         }
 
         const deadlines = await storage.getDeadlinesByAthlete(nameInput);
         if (deadlines.length === 0) {
-          await message.reply(`Nessuna informazione trovata per l'atleta "${nameInput}". Assicurati di aver scritto il nome correttamente come nel foglio Google.`);
+          await message.reply(`Nessun atleta trovato con il nome "${nameInput}". Assicurati di aver scritto il nome correttamente come nel foglio Google.`);
         } else {
           const first = deadlines[0];
           let reply = `📋 **Scheda Atleta: ${first.athleteName}**\n`;
-          reply += `- **Data di Nascita**: ${first.dateOfBirth || 'N/D'}\n`;
+          
+          let dobVal = first.dateOfBirth;
+          if (dobVal && typeof dobVal === 'string') {
+            // Se è già una stringa dd/mm/yyyy (come importata da GS) la lasciamo così
+            // Altrimenti proviamo a formattarla se possibile
+          } else if (dobVal instanceof Date) {
+            dobVal = formatDate(dobVal);
+          }
+          
+          reply += `- **Data di Nascita**: ${dobVal || 'N/D'}\n`;
           reply += `- **Tessera FIDAL**: ${first.fidalCard || 'N/D'}\n`;
           reply += `- **Tipo Abbonamento**: ${first.subscriptionType || 'N/D'}\n\n`;
           
           reply += `**Scadenze:**\n`;
+
           for (const d of deadlines) {
+            if (d.type === 'info') continue;
             const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             let status = "";
             if (diffDays < 0) status = " (SCADUTA)";
@@ -224,16 +243,16 @@ export class BotService {
             else status = ` (tra ${diffDays} gg)`;
             
             let emoji = "";
-            if (d.type === 'tabella') emoji = "📄 ";
-            else if (d.type === 'pagamento') emoji = "💰 ";
+            if (d.type === 'tabella') emoji = "📅 ";
+            else if (d.type === 'pagamento') emoji = "💸 ";
             else if (d.type === 'certificato') emoji = "🧬 ";
 
-            reply += `- ${emoji}**${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+            reply += `- ${emoji}**${d.description}**: ${formatDate(d.date)}${status}\n`;
           }
           await message.reply(reply);
         }
-      } else if (content.startsWith('!scadenza')) {
-        const nameInput = content.replace('!scadenza', '').trim();
+      } else if (content.startsWith('!scadenza ')) {
+        const nameInput = content.replace('!scadenza ', '').trim();
         if (!nameInput) {
           await message.reply('Specifica il nome dell\'atleta. Es: `!scadenza Mario Rossi`');
           return;
@@ -245,7 +264,9 @@ export class BotService {
         } else {
           const first = deadlines[0];
           let reply = `Scadenze per **${first.athleteName}**:\n`;
+
           for (const d of deadlines) {
+            if (d.type === 'info') continue;
             const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             let status = "";
             if (diffDays < 0) status = " (SCADUTA)";
@@ -253,11 +274,11 @@ export class BotService {
             else status = ` (scade tra ${diffDays} giorni)`;
             
             let emoji = "";
-            if (d.type === 'tabella') emoji = "📄 ";
-            else if (d.type === 'pagamento') emoji = "💰 ";
+            if (d.type === 'tabella') emoji = "📅 ";
+            else if (d.type === 'pagamento') emoji = "💸 ";
             else if (d.type === 'certificato') emoji = "🧬 ";
 
-            reply += `- ${emoji}**${d.description}**: ${d.date.toLocaleDateString()}${status}\n`;
+            reply += `- ${emoji}**${d.description}**: ${formatDate(d.date)}${status}\n`;
           }
           await message.reply(reply);
         }
@@ -283,13 +304,16 @@ export class BotService {
               const first = deadlines[0];
               const athleteNameFound = first.athleteName;
               if ('field' in kw) {
-                const val = (first as any)[(kw as any).field];
+                let val = (first as any)[(kw as any).field];
+                if (kw.field === 'dateOfBirth' && val) {
+                  val = formatDate(new Date(val));
+                }
                 await message.reply(`La **${kw.label}** di **${athleteNameFound}** è: ${val || 'N/D'}`);
               } else if ('type' in kw) {
                 const d = deadlines.find(dl => dl.type === (kw as any).type);
                 if (d) {
                   const diffDays = Math.ceil((d.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  await message.reply(`La **${kw.label}** di **${athleteNameFound}** è il **${d.date.toLocaleDateString()}** (tra ${diffDays} giorni).`);
+                  await message.reply(`La **${kw.label}** di **${athleteNameFound}** è il **${formatDate(d.date)}** (tra ${diffDays} giorni).`);
                 } else {
                   await message.reply(`Non ho trovato una ${kw.label} per **${athleteNameFound}**.`);
                 }
@@ -307,23 +331,26 @@ export class BotService {
     
     // Prova a inviare nel canale specifico se definito
     if (type) {
-      const channelMap: Record<string, string> = {
-        'certificato': 'scadenza-visite',
-        'pagamento': 'scadenze-pagamenti',
-        'tabella': 'scadenze-tabelle'
+      const channelMap: Record<string, { name: string, emoji: string }> = {
+        'certificato': { name: 'scadenza-visite', emoji: '🧬' },
+        'pagamento': { name: 'scadenze-pagamenti', emoji: '💸' },
+        'tabella': { name: 'scadenze-tabelle', emoji: '📅' }
       };
       
-      const channelName = channelMap[type];
-      if (channelName) {
+      const config = channelMap[type];
+      if (config) {
         const guild = this.client.guilds.cache.first(); // Prende il primo server in cui si trova il bot
         if (guild) {
-          const channel = guild.channels.cache.find(c => c.name === channelName && c.isTextBased());
+          const channel = guild.channels.cache.find(c => {
+            const cName = c.name.toLowerCase();
+            return cName === config.name && c.isTextBased();
+          });
           if (channel) {
             try {
-              await (channel as TextChannel).send(text);
+              await (channel as TextChannel).send(`${config.emoji} ${text}`);
               return; // Notifica inviata al canale, saltiamo il DM
             } catch (e) {
-              console.error(`Failed to send to channel ${channelName}`, e);
+              console.error(`Failed to send to channel ${config.name}`, e);
             }
           }
         }
@@ -353,18 +380,23 @@ export class BotService {
         let level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay' | null = null;
         let msg = "";
 
+        const dd = d.date.getDate().toString().padStart(2, '0');
+        const mm = (d.date.getMonth() + 1).toString().padStart(2, '0');
+        const yyyy = d.date.getFullYear();
+        const formattedDate = `${dd}/${mm}/${yyyy}`;
+
         if (diffDays === 30 && !d.notifiedOneMonth) {
           level = 'oneMonth';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 1 mese (${d.date.toLocaleDateString()}).`;
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 1 mese (${formattedDate}).`;
         } else if (diffDays === 10 && !d.notifiedTenDays) {
           level = 'tenDays';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 10 giorni (${d.date.toLocaleDateString()}).`;
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 10 giorni (${formattedDate}).`;
         } else if (diffDays === 3 && !d.notifiedThreeDays) {
           level = 'threeDays';
-          msg = `Il ${d.description} di **${d.athleteName}** scade tra 3 giorni (${d.date.toLocaleDateString()}).`;
+          msg = `Il ${d.description} di **${d.athleteName}** scade tra 3 giorni (${formattedDate}).`;
         } else if (diffDays === 1 && !d.notifiedOneDay) {
           level = 'oneDay';
-          msg = `Il ${d.description} di **${d.athleteName}** scade DOMANI (${d.date.toLocaleDateString()}).`;
+          msg = `Il ${d.description} di **${d.athleteName}** scade DOMANI (${formattedDate}).`;
         }
 
         if (level && msg) {
