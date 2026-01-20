@@ -67,18 +67,22 @@ export class BotService {
           const athleteName = (row["NOME"] || row["nome dell'atleta"] || row["Atleta"] || "").trim();
           if (!athleteName) continue;
 
-          const dobValue = row["DATA DI NASCITA"] || row["data di nascita"] || row["Data di nascita"] || row["Data di Nascita"] || row["DATA DI NASCITA "];
+          const dobValue = row["DATA  DI NASCITA"] || row["DATA DI NASCITA"] || row["data di nascita"] || row["Data di nascita"] || row["Data di Nascita"] || row["DATA DI NASCITA "] || row["DATA DI NASCITA  "];
           
           if (!athleteDataMap.has(athleteName)) {
+            const dob = (dobValue && String(dobValue).trim()) || null;
             athleteDataMap.set(athleteName, {
-              dateOfBirth: (dobValue && String(dobValue).trim()) || null,
+              dateOfBirth: dob,
               fidalCard: (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || "").trim() || null,
               subscriptionType: (row["TIPO DI ABBONAMENTO"] || row["tipo di abbonamento"] || "").trim() || null,
               deadlines: []
             });
           } else {
             const existing = athleteDataMap.get(athleteName);
-            if (!existing.dateOfBirth && dobValue) existing.dateOfBirth = String(dobValue).trim();
+            if (!existing.dateOfBirth && dobValue) {
+              const dob = String(dobValue).trim();
+              existing.dateOfBirth = dob;
+            }
             if (!existing.fidalCard) {
               const fidal = (row["TESSERA FIDAL"] || row["TESSERA FIDAL "] || row["tessera fidal"] || "").trim();
               if (fidal) existing.fidalCard = fidal;
