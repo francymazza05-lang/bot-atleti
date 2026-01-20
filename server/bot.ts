@@ -227,8 +227,10 @@ export class BotService {
           await this.sendAdminNotification(`📢 **Promemoria Scadenza (TEST)**\n${msg}`, d.type);
         }
         await message.reply('Test promemoria completato. Controlla i canali dedicati!');
-      } else if (content.startsWith('!atleta ')) {
-        const nameInput = content.replace('!atleta ', '').trim();
+      } else if (content.startsWith('!atleta ') || content.startsWith('!info ')) {
+        const nameInput = content.startsWith('!atleta ') 
+          ? content.replace('!atleta ', '').trim()
+          : content.replace('!info ', '').trim();
         if (!nameInput) {
           await message.reply('Specifica il nome dell\'atleta. Es: `!atleta Mario Rossi`');
           return;
@@ -364,9 +366,12 @@ export class BotService {
         if (guild) {
           console.log(`[NOTIF] Searching for channel ${config.name} in guild ${guild.name}`);
           const channel = guild.channels.cache.find(c => {
-            const cName = c.name.toLowerCase().trim().replace(/^#/, '');
-            const configName = config.name.toLowerCase().trim().replace(/^#/, '');
-            return cName === configName && c.isTextBased();
+            const cName = c.name.toLowerCase().trim();
+            const configName = config.name.toLowerCase().trim();
+            // Match if channel name contains the config name or vice versa (ignoring special chars)
+            const cleanCName = cName.replace(/[^a-z0-9]/g, '');
+            const cleanConfigName = configName.replace(/[^a-z0-9]/g, '');
+            return cleanCName.includes(cleanConfigName) || cleanConfigName.includes(cleanCName);
           });
           if (channel) {
             try {
