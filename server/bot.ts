@@ -206,6 +206,26 @@ export class BotService {
         }).catch(err => {
           message.reply(`Errore durante la sincronizzazione: ${err.message}`);
         });
+      } else if (content === '!testpromemoria') {
+        await message.reply('Avvio test promemoria manuale per tutte le tipologie...');
+        const now = new Date();
+        const fakeDeadlines = [
+          { type: 'certificato', desc: 'Test Scadenza Certificato', date: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) },
+          { type: 'pagamento', desc: 'Test Scadenza Pagamento', date: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000) },
+          { type: 'tabella', desc: 'Test Scadenza Tabella', date: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) }
+        ];
+
+        for (const d of fakeDeadlines) {
+          const dd = d.date.getDate().toString().padStart(2, '0');
+          const mm = (d.date.getMonth() + 1).toString().padStart(2, '0');
+          const yyyy = d.date.getFullYear();
+          const formattedDate = `${dd}/${mm}/${yyyy}`;
+          const diffDays = Math.ceil((d.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          let msg = `Il ${d.desc} di **TEST ATLETA** scade tra ${diffDays} giorni (${formattedDate}).`;
+          await this.sendAdminNotification(`📢 **Promemoria Scadenza (TEST)**\n${msg}`, d.type);
+        }
+        await message.reply('Test promemoria completato. Controlla i canali dedicati!');
       } else if (content.startsWith('!atleta ')) {
         const nameInput = content.replace('!atleta ', '').trim();
         if (!nameInput) {
