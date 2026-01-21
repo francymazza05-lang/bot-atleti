@@ -33,13 +33,19 @@ export class BotService {
     });
 
     this.setupListeners();
-    this.startReminderCheck();
     this.startSyncJob();
+    // Reminder check is started AFTER first sync completes (see startSyncJob)
   }
 
   private async startSyncJob() {
-    // Run sync immediately on start, then every 5 minutes
-    this.syncFromGoogleSheets().catch(console.error);
+    // Run sync immediately on start
+    await this.syncFromGoogleSheets().catch(console.error);
+    
+    // Start reminder check AFTER first sync is complete
+    // This ensures we mark existing deadlines AFTER they're imported
+    this.startReminderCheck();
+    
+    // Then sync every 5 minutes
     setInterval(() => {
       console.log("[HEARTBEAT] Keeping process alive...");
       this.syncFromGoogleSheets().catch(console.error);
