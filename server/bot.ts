@@ -61,9 +61,15 @@ export class BotService {
       if (records.length > 0) {
         // Save existing notification flags before clearing
         const existingDeadlines = await storage.getUpcomingDeadlines();
+        // Helper to get date-only key (ignore time component)
+        const getDateKey = (date: Date) => {
+          const d = new Date(date);
+          return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+        };
+        
         const notificationFlags = new Map<string, { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }>();
         for (const d of existingDeadlines) {
-          const key = `${d.athleteName}|${d.type}|${d.date.getTime()}`;
+          const key = `${d.athleteName}|${d.type}|${getDateKey(d.date)}`;
           notificationFlags.set(key, {
             oneMonth: d.notifiedOneMonth || false,
             tenDays: d.notifiedTenDays || false,
@@ -152,7 +158,7 @@ export class BotService {
           };
 
           if (data.deadlines.length === 0) {
-            const key = `${athleteName}|info|0`;
+            const key = `${athleteName}|info|1970-01-01`;
             const existingFlags = notificationFlags.get(key) || { oneMonth: false, tenDays: false, threeDays: false, oneDay: false };
             await storage.createDeadlineWithFlags({
               ...baseData,
@@ -163,7 +169,7 @@ export class BotService {
             count++;
           } else {
             for (const dl of data.deadlines) {
-              const key = `${athleteName}|${(dl as any).type}|${(dl as any).date.getTime()}`;
+              const key = `${athleteName}|${(dl as any).type}|${getDateKey((dl as any).date)}`;
               const existingFlags = notificationFlags.get(key) || { oneMonth: false, tenDays: false, threeDays: false, oneDay: false };
               await storage.createDeadlineWithFlags({
                 ...baseData,
@@ -544,11 +550,22 @@ export class BotService {
   }
 
   private startReminderCheck() {
-    // DISABLED: Automatic reminder checks are disabled to prevent spam
-    // Use !verificascadenze command to manually check deadlines
-    // setInterval(async () => {
-    //   await this.checkAllDeadlines();
-    // }, 60 * 60 * 1000); // Check every hour
+    // Only run automatic reminder checks in production to avoid duplicates
+    // when both dev and production bots are running
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[REMINDER] Automatic reminders disabled in development mode');
+      return;
+    }
+    
+    // In production, check once per day at startup, then every 24 hours
+    console.log('[REMINDER] Starting automatic reminder check (production mode)');
+    setTimeout(async () => {
+      await this.checkAllDeadlines();
+    }, 60 * 1000); // Wait 1 minute after startup before first check
+    
+    setInterval(async () => {
+      await this.checkAllDeadlines();
+    }, 24 * 60 * 60 * 1000); // Check once per day
   }
 
   public async start(token: string) {
