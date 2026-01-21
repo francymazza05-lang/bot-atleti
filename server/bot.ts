@@ -544,9 +544,11 @@ export class BotService {
   }
 
   private startReminderCheck() {
-    setInterval(async () => {
-      await this.checkAllDeadlines();
-    }, 60 * 60 * 1000); // Check every hour
+    // DISABLED: Automatic reminder checks are disabled to prevent spam
+    // Use !verificascadenze command to manually check deadlines
+    // setInterval(async () => {
+    //   await this.checkAllDeadlines();
+    // }, 60 * 60 * 1000); // Check every hour
   }
 
   public async start(token: string) {
