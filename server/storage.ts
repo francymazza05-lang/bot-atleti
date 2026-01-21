@@ -31,6 +31,7 @@ export interface IStorage {
 
   // Deadlines
   getUpcomingDeadlines(): Promise<Deadline[]>;
+  getDeadlineById(id: number): Promise<Deadline | undefined>;
   createDeadline(deadline: InsertDeadline): Promise<Deadline>;
   createDeadlineWithFlags(deadline: InsertDeadline, flags: { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }): Promise<Deadline>;
   markDeadlineNotified(id: number, level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay'): Promise<void>;
@@ -89,6 +90,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUpcomingDeadlines(): Promise<Deadline[]> {
     return await db.select().from(deadlines);
+  }
+
+  async getDeadlineById(id: number): Promise<Deadline | undefined> {
+    const [deadline] = await db.select().from(deadlines).where(eq(deadlines.id, id));
+    return deadline;
   }
 
   async createDeadline(deadline: InsertDeadline): Promise<Deadline> {

@@ -531,6 +531,22 @@ export class BotService {
       }
 
       if (level) {
+        // EXTRA SAFETY: Re-check flag from database before sending
+        // This prevents duplicates if bot restarts multiple times
+        const freshDeadline = await storage.getDeadlineById(d.id);
+        if (!freshDeadline) continue;
+        
+        const alreadySent = 
+          (level === 'oneMonth' && freshDeadline.notifiedOneMonth) ||
+          (level === 'tenDays' && freshDeadline.notifiedTenDays) ||
+          (level === 'threeDays' && freshDeadline.notifiedThreeDays) ||
+          (level === 'oneDay' && freshDeadline.notifiedOneDay);
+        
+        if (alreadySent) {
+          console.log(`[REMINDER] Skipping ${d.athleteName} (${level}) - already notified`);
+          continue;
+        }
+        
         if (d.type === 'certificato') {
           msg = `Il certificato di **${d.athleteName}** scade il **${formattedDate}**.`;
         } else if (d.type === 'tabella') {
@@ -540,8 +556,10 @@ export class BotService {
         }
 
         if (msg) {
-          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
+          // Mark as notified BEFORE sending to prevent race conditions
           await storage.markDeadlineNotified(d.id, level);
+          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
+          console.log(`[REMINDER] Sent ${level} reminder for ${d.athleteName}`);
           sentCount++;
         }
       }
