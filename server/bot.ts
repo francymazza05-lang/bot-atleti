@@ -568,6 +568,11 @@ export class BotService {
   }
 
   private startReminderCheck() {
+    // TEMPORARILY DISABLED: All automatic reminders are disabled until flags are set correctly
+    // Remove this block once production database flags are properly initialized
+    console.log('[REMINDER] Automatic reminders DISABLED - awaiting database flag setup');
+    return;
+    
     // Only run automatic reminder checks in production to avoid duplicates
     // when both dev and production bots are running
     if (process.env.NODE_ENV === 'development') {
