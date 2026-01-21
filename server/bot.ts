@@ -567,18 +567,19 @@ export class BotService {
     return sentCount;
   }
 
-  private startReminderCheck() {
-    // TEMPORARILY DISABLED: All automatic reminders are disabled until flags are set correctly
-    // Remove this block once production database flags are properly initialized
-    console.log('[REMINDER] Automatic reminders DISABLED - awaiting database flag setup');
-    return;
-    
+  private async startReminderCheck() {
     // Only run automatic reminder checks in production to avoid duplicates
     // when both dev and production bots are running
     if (process.env.NODE_ENV === 'development') {
       console.log('[REMINDER] Automatic reminders disabled in development mode');
       return;
     }
+    
+    // SAFETY: Mark all existing deadlines as notified on startup
+    // This prevents spam when bot restarts - only NEW deadlines will trigger reminders
+    console.log('[REMINDER] Marking all existing deadlines as notified (anti-spam protection)...');
+    await storage.markAllDeadlinesAsNotified();
+    console.log('[REMINDER] All existing deadlines marked. Only new/changed deadlines will trigger reminders.');
     
     // In production, check once per day at startup, then every 24 hours
     console.log('[REMINDER] Starting automatic reminder check (production mode)');

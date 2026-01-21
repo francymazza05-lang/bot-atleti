@@ -129,6 +129,17 @@ export class DatabaseStorage implements IStorage {
   async clearAllDeadlines(): Promise<void> {
     await db.delete(deadlines);
   }
+
+  async markAllDeadlinesAsNotified(): Promise<number> {
+    const result = await db.update(deadlines)
+      .set({
+        notifiedOneMonth: true,
+        notifiedTenDays: true,
+        notifiedThreeDays: true,
+        notifiedOneDay: true
+      });
+    return 0;
+  }
 }
 
 export const storage = new DatabaseStorage();
