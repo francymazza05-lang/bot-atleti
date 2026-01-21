@@ -19,6 +19,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Health check endpoint for uptime monitoring (UptimeRobot, etc.)
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: Date.now() });
+  });
+
   // Excel Upload API
   app.post(api.deadlines.upload.path, upload.single("file"), async (req: MulterRequest, res) => {
     try {

@@ -81,3 +81,17 @@ shared/           # Shared code between frontend and backend
 ### Environment Variables Required
 - `DATABASE_URL`: PostgreSQL connection string
 - `DISCORD_TOKEN`: Discord bot authentication token
+
+## Keeping the Bot Online 24/7 (Free)
+
+The bot includes a `/health` endpoint that can be monitored by free uptime services like UptimeRobot. This prevents Replit from putting the server to sleep.
+
+### Setup Instructions:
+1. Go to https://uptimerobot.com and create a free account
+2. Click "Add New Monitor"
+3. Select "HTTP(s)" as the monitor type
+4. Set the URL to: `https://YOUR-REPLIT-URL.replit.app/health`
+5. Set the monitoring interval to 5 minutes
+6. Save the monitor
+
+This will ping the server every 5 minutes, keeping the Discord bot always online without needing to keep Replit open.
