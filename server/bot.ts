@@ -217,6 +217,14 @@ export class BotService {
         }).catch(err => {
           message.reply(`Errore durante la sincronizzazione: ${err.message}`);
         });
+      } else if (content === '!testcheck') {
+        const now = Date.now();
+        const deadlines = await storage.getUpcomingDeadlines();
+        await message.reply(`Trovate ${deadlines.length} scadenze da controllare.`);
+        for (const d of deadlines) {
+          const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
+          await message.reply(`- **${d.athleteName}** (${d.type}): ${diffDays} gg.`);
+        }
       } else if (content === '!testpromemoria') {
         await message.reply('Avvio test promemoria manuale per tutte le tipologie...');
         const now = new Date();
@@ -439,6 +447,7 @@ export class BotService {
 
       const now = Date.now();
       const deadlines = await storage.getUpcomingDeadlines();
+      console.log(`[CHECK] Checking ${deadlines.length} upcoming deadlines...`);
       
       for (const d of deadlines) {
         const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
@@ -447,13 +456,13 @@ export class BotService {
 
         const formattedDate = formatDate(d.date);
 
-        if (diffDays === 30 && !d.notifiedOneMonth) {
+        if (diffDays <= 30 && diffDays > 10 && !d.notifiedOneMonth) {
           level = 'oneMonth';
-        } else if (diffDays === 10 && !d.notifiedTenDays) {
+        } else if (diffDays <= 10 && diffDays > 3 && !d.notifiedTenDays) {
           level = 'tenDays';
-        } else if (diffDays === 3 && !d.notifiedThreeDays) {
+        } else if (diffDays <= 3 && diffDays > 1 && !d.notifiedThreeDays) {
           level = 'threeDays';
-        } else if (diffDays === 1 && !d.notifiedOneDay) {
+        } else if (diffDays <= 1 && diffDays >= 0 && !d.notifiedOneDay) {
           level = 'oneDay';
         }
 
