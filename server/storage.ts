@@ -142,18 +142,23 @@ export class DatabaseStorage implements IStorage {
       
       const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
       
-      // Set flags based on days remaining:
-      // - If deadline is > 30 days away: all flags false (will get all reminders)
-      // - If deadline is 10-30 days away: oneMonth=true (already past that threshold)
-      // - If deadline is 3-10 days away: oneMonth=true, tenDays=true
-      // - If deadline is 1-3 days away: oneMonth=true, tenDays=true, threeDays=true
-      // - If deadline is <= 1 day or passed: all flags true (no more reminders)
+      // Set flags based on which windows have PASSED (not current window)
+      // This ensures the reminder for the CURRENT window can still be sent
+      // Reminder windows: 30-10 days, 10-3 days, 3-1 days, 1-0 days
+      // 
+      // Example: deadline in 5 days (diffDays=5)
+      // - oneMonth window (30-10) has passed → oneMonth=true
+      // - tenDays window (10-3) is CURRENT → tenDays=false (can send reminder)
+      // - threeDays window (3-1) not yet → threeDays=false
+      // - oneDay window (1-0) not yet → oneDay=false
       
+      // Calculate what the flags SHOULD be based on days remaining
+      // But NEVER change a true flag to false (preserve already-sent reminders)
       const flags = {
-        notifiedOneMonth: diffDays <= 30,
-        notifiedTenDays: diffDays <= 10,
-        notifiedThreeDays: diffDays <= 3,
-        notifiedOneDay: diffDays <= 1
+        notifiedOneMonth: d.notifiedOneMonth || diffDays <= 10,  // Keep true OR window passed
+        notifiedTenDays: d.notifiedTenDays || diffDays <= 3,      // Keep true OR window passed
+        notifiedThreeDays: d.notifiedThreeDays || diffDays <= 1,  // Keep true OR window passed
+        notifiedOneDay: d.notifiedOneDay || diffDays <= 0         // Keep true OR window passed
       };
       
       await db.update(deadlines)
