@@ -59,6 +59,19 @@ export class BotService {
       });
 
       if (records.length > 0) {
+        // Save existing notification flags before clearing
+        const existingDeadlines = await storage.getUpcomingDeadlines();
+        const notificationFlags = new Map<string, { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }>();
+        for (const d of existingDeadlines) {
+          const key = `${d.athleteName}|${d.type}|${d.date.getTime()}`;
+          notificationFlags.set(key, {
+            oneMonth: d.notifiedOneMonth || false,
+            tenDays: d.notifiedTenDays || false,
+            threeDays: d.notifiedThreeDays || false,
+            oneDay: d.notifiedOneDay || false
+          });
+        }
+        
         // Clear existing deadlines before sync to avoid duplicates
         await (storage as any).clearAllDeadlines();
         
@@ -130,7 +143,7 @@ export class BotService {
           }
         }
 
-        for (const [athleteName, data] of athleteDataMap.entries()) {
+        for (const [athleteName, data] of Array.from(athleteDataMap.entries())) {
           const baseData = {
             athleteName,
             dateOfBirth: data.dateOfBirth ? String(data.dateOfBirth).trim() : null,
@@ -139,21 +152,25 @@ export class BotService {
           };
 
           if (data.deadlines.length === 0) {
-            await storage.createDeadline({
+            const key = `${athleteName}|info|0`;
+            const existingFlags = notificationFlags.get(key) || { oneMonth: false, tenDays: false, threeDays: false, oneDay: false };
+            await storage.createDeadlineWithFlags({
               ...baseData,
               type: "info",
               description: "Informazioni Atleta",
               date: new Date(0),
-            });
+            }, existingFlags);
             count++;
           } else {
             for (const dl of data.deadlines) {
-              await storage.createDeadline({
+              const key = `${athleteName}|${(dl as any).type}|${(dl as any).date.getTime()}`;
+              const existingFlags = notificationFlags.get(key) || { oneMonth: false, tenDays: false, threeDays: false, oneDay: false };
+              await storage.createDeadlineWithFlags({
                 ...baseData,
                 type: (dl as any).type,
                 description: (dl as any).desc,
                 date: (dl as any).date,
-              });
+              }, existingFlags);
               count++;
             }
           }

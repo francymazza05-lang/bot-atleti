@@ -32,6 +32,7 @@ export interface IStorage {
   // Deadlines
   getUpcomingDeadlines(): Promise<Deadline[]>;
   createDeadline(deadline: InsertDeadline): Promise<Deadline>;
+  createDeadlineWithFlags(deadline: InsertDeadline, flags: { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }): Promise<Deadline>;
   markDeadlineNotified(id: number, level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay'): Promise<void>;
   getDeadlinesByAthlete(name: string): Promise<Deadline[]>;
 }
@@ -92,6 +93,17 @@ export class DatabaseStorage implements IStorage {
 
   async createDeadline(deadline: InsertDeadline): Promise<Deadline> {
     const [newDeadline] = await db.insert(deadlines).values(deadline).returning();
+    return newDeadline;
+  }
+
+  async createDeadlineWithFlags(deadline: InsertDeadline, flags: { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }): Promise<Deadline> {
+    const [newDeadline] = await db.insert(deadlines).values({
+      ...deadline,
+      notifiedOneMonth: flags.oneMonth,
+      notifiedTenDays: flags.tenDays,
+      notifiedThreeDays: flags.threeDays,
+      notifiedOneDay: flags.oneDay
+    }).returning();
     return newDeadline;
   }
 
