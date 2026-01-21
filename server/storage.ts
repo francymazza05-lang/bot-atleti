@@ -130,15 +130,39 @@ export class DatabaseStorage implements IStorage {
     await db.delete(deadlines);
   }
 
-  async markAllDeadlinesAsNotified(): Promise<number> {
-    const result = await db.update(deadlines)
-      .set({
-        notifiedOneMonth: true,
-        notifiedTenDays: true,
-        notifiedThreeDays: true,
-        notifiedOneDay: true
-      });
-    return 0;
+  async setSmartNotificationFlags(): Promise<number> {
+    // Set flags intelligently based on days remaining to each deadline
+    // This ensures existing deadlines get correct future reminders without spam
+    const allDeadlines = await db.select().from(deadlines);
+    const now = Date.now();
+    let updated = 0;
+    
+    for (const d of allDeadlines) {
+      if (d.type === 'info') continue;
+      
+      const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
+      
+      // Set flags based on days remaining:
+      // - If deadline is > 30 days away: all flags false (will get all reminders)
+      // - If deadline is 10-30 days away: oneMonth=true (already past that threshold)
+      // - If deadline is 3-10 days away: oneMonth=true, tenDays=true
+      // - If deadline is 1-3 days away: oneMonth=true, tenDays=true, threeDays=true
+      // - If deadline is <= 1 day or passed: all flags true (no more reminders)
+      
+      const flags = {
+        notifiedOneMonth: diffDays <= 30,
+        notifiedTenDays: diffDays <= 10,
+        notifiedThreeDays: diffDays <= 3,
+        notifiedOneDay: diffDays <= 1
+      };
+      
+      await db.update(deadlines)
+        .set(flags)
+        .where(eq(deadlines.id, d.id));
+      updated++;
+    }
+    
+    return updated;
   }
 }
 

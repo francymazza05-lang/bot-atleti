@@ -581,11 +581,11 @@ export class BotService {
       return;
     }
     
-    // SAFETY: Mark all existing deadlines as notified on startup
-    // This prevents spam when bot restarts - only NEW deadlines will trigger reminders
-    console.log('[REMINDER] Marking all existing deadlines as notified (anti-spam protection)...');
-    await storage.markAllDeadlinesAsNotified();
-    console.log('[REMINDER] All existing deadlines marked. Only new/changed deadlines will trigger reminders.');
+    // SMART FLAG SETUP: Set notification flags based on days remaining
+    // This ensures each deadline gets correct future reminders without spam
+    console.log('[REMINDER] Setting smart notification flags based on days remaining...');
+    const updated = await storage.setSmartNotificationFlags();
+    console.log(`[REMINDER] Updated ${updated} deadlines with smart flags. Reminders will be sent at correct thresholds.`);
     
     // In production, check once per day at startup, then every 24 hours
     console.log('[REMINDER] Starting automatic reminder check (production mode)');
