@@ -40,7 +40,10 @@ export class BotService {
   private async startSyncJob() {
     // Run sync immediately on start, then every 5 minutes
     this.syncFromGoogleSheets().catch(console.error);
-    setInterval(() => this.syncFromGoogleSheets().catch(console.error), 5 * 60 * 1000);
+    setInterval(() => {
+      console.log("[HEARTBEAT] Keeping process alive...");
+      this.syncFromGoogleSheets().catch(console.error);
+    }, 5 * 60 * 1000);
   }
 
   private async syncFromGoogleSheets() {
@@ -180,8 +183,8 @@ export class BotService {
 
     this.client.on(Events.MessageCreate, async (message) => {
       if (message.author.bot) return;
-
       const content = message.content.toLowerCase().trim();
+      console.log(`[DEBUG] Received command: "${content}" from ${message.author.tag}`);
       
       const formatDate = (date: Date | null) => {
         if (!date || date.getTime() === 0) return 'N/D';
