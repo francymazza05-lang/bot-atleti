@@ -198,6 +198,7 @@ export class BotService {
         helpMsg += '`!atleta [nome]` o `!info [nome]` - Mostra la scheda completa e le scadenze dell\'atleta\n';
         helpMsg += '`!scadenza [nome]` - Mostra solo l\'elenco delle scadenze di un atleta\n';
         helpMsg += '`!sync` - Sincronizza manualmente i dati dal foglio Google\n';
+        helpMsg += '`!verificascadenze` - Forza il controllo delle scadenze e invia promemoria mancanti\n';
         helpMsg += '`!allenamento` - Ricevi un suggerimento di allenamento casuale\n';
         helpMsg += '`!motivazione` - Ricevi una frase motivazionale\n';
         helpMsg += '`!testpromemoria` - (Admin) Invia un test delle notifiche nei canali\n';
@@ -251,6 +252,10 @@ export class BotService {
           }
           await message.reply(`Inviati ${sentCount} promemoria per **${nameInput}** nei canali dedicati.`);
         }
+      } else if (content === '!verificascadenze') {
+        await message.reply('Verifica manuale delle scadenze in corso...');
+        const count = await this.checkAllDeadlines();
+        await message.reply(`Verifica completata. Inviati ${count} nuovi promemoria.`);
       } else if (content === '!testcheck') {
         const now = Date.now();
         const deadlines = await storage.getUpcomingDeadlines();
@@ -467,54 +472,60 @@ export class BotService {
     }
   }
 
-  private startReminderCheck() {
-    const formatDate = (date: Date | null) => {
-      if (!date || date.getTime() === 0) return 'N/D';
-      const d = date.getDate().toString().padStart(2, '0');
-      const m = (date.getMonth() + 1).toString().padStart(2, '0');
-      const y = date.getFullYear();
-      return `${d}/${m}/${y}`;
-    };
+  private async checkAllDeadlines() {
+    if (!this.isConnected) return 0;
 
-    setInterval(async () => {
-      if (!this.isConnected) return;
+    const now = Date.now();
+    const deadlines = await storage.getUpcomingDeadlines();
+    let sentCount = 0;
+    
+    for (const d of deadlines) {
+      const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
+      let level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay' | null = null;
+      let msg = "";
 
-      const now = Date.now();
-      const deadlines = await storage.getUpcomingDeadlines();
-      console.log(`[CHECK] Checking ${deadlines.length} upcoming deadlines...`);
-      
-      for (const d of deadlines) {
-        const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
-        let level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay' | null = null;
-        let msg = "";
+      const formatDate = (date: Date | null) => {
+        if (!date || date.getTime() === 0) return 'N/D';
+        const dd = date.getDate().toString().padStart(2, '0');
+        const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+      };
 
-        const formattedDate = formatDate(d.date);
+      const formattedDate = formatDate(d.date);
 
-        if (diffDays <= 30 && diffDays > 10 && !d.notifiedOneMonth) {
-          level = 'oneMonth';
-        } else if (diffDays <= 10 && diffDays > 3 && !d.notifiedTenDays) {
-          level = 'tenDays';
-        } else if (diffDays <= 3 && diffDays > 1 && !d.notifiedThreeDays) {
-          level = 'threeDays';
-        } else if (diffDays <= 1 && diffDays >= 0 && !d.notifiedOneDay) {
-          level = 'oneDay';
+      if (diffDays <= 30 && diffDays > 10 && !d.notifiedOneMonth) {
+        level = 'oneMonth';
+      } else if (diffDays <= 10 && diffDays > 3 && !d.notifiedTenDays) {
+        level = 'tenDays';
+      } else if (diffDays <= 3 && diffDays > 1 && !d.notifiedThreeDays) {
+        level = 'threeDays';
+      } else if (diffDays <= 1 && diffDays >= 0 && !d.notifiedOneDay) {
+        level = 'oneDay';
+      }
+
+      if (level) {
+        if (d.type === 'certificato') {
+          msg = `Il certificato di **${d.athleteName}** scade il **${formattedDate}**.`;
+        } else if (d.type === 'tabella') {
+          msg = `La tabella di **${d.athleteName}** scade il **${formattedDate}**.`;
+        } else if (d.type === 'pagamento') {
+          msg = `L'abbonamento di **${d.athleteName}** scade il **${formattedDate}**.`;
         }
 
-        if (level) {
-          if (d.type === 'certificato') {
-            msg = `Il certificato di **${d.athleteName}** scade il **${formattedDate}**.`;
-          } else if (d.type === 'tabella') {
-            msg = `La tabella di **${d.athleteName}** scade il **${formattedDate}**.`;
-          } else if (d.type === 'pagamento') {
-            msg = `L'abbonamento di **${d.athleteName}** scade il **${formattedDate}**.`;
-          }
-
-          if (msg) {
-            await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
-            await storage.markDeadlineNotified(d.id, level);
-          }
+        if (msg) {
+          await this.sendAdminNotification(`📢 **Promemoria Scadenza**\n${msg}`, d.type);
+          await storage.markDeadlineNotified(d.id, level);
+          sentCount++;
         }
       }
+    }
+    return sentCount;
+  }
+
+  private startReminderCheck() {
+    setInterval(async () => {
+      await this.checkAllDeadlines();
     }, 60 * 60 * 1000); // Check every hour
   }
 
