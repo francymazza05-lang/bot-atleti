@@ -217,6 +217,40 @@ export class BotService {
         }).catch(err => {
           message.reply(`Errore durante la sincronizzazione: ${err.message}`);
         });
+      } else if (content.startsWith('!promemoria ')) {
+        const nameInput = content.replace('!promemoria ', '').trim();
+        if (!nameInput) {
+          await message.reply('Specifica il nome dell\'atleta. Es: `!promemoria Mario Rossi`');
+          return;
+        }
+
+        const now = Date.now();
+        const deadlines = await storage.getDeadlinesByAthlete(nameInput);
+        if (deadlines.length === 0) {
+          await message.reply(`Nessun atleta trovato con il nome "${nameInput}".`);
+        } else {
+          let sentCount = 0;
+          for (const d of deadlines) {
+            if (d.type === 'info') continue;
+            const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
+            const formattedDate = formatDate(d.date);
+            let msg = "";
+            
+            if (d.type === 'certificato') {
+              msg = `Il certificato di **${d.athleteName}** scade il **${formattedDate}**.`;
+            } else if (d.type === 'tabella') {
+              msg = `La tabella di **${d.athleteName}** scade il **${formattedDate}**.`;
+            } else if (d.type === 'pagamento') {
+              msg = `L'abbonamento di **${d.athleteName}** scade il **${formattedDate}**.`;
+            }
+
+            if (msg) {
+              await this.sendAdminNotification(`📢 **Promemoria Scadenza (Manuale)**\n${msg}`, d.type);
+              sentCount++;
+            }
+          }
+          await message.reply(`Inviati ${sentCount} promemoria per **${nameInput}** nei canali dedicati.`);
+        }
       } else if (content === '!testcheck') {
         const now = Date.now();
         const deadlines = await storage.getUpcomingDeadlines();
