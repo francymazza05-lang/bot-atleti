@@ -286,6 +286,8 @@ export class BotService {
         }
       } else if (content === '!verificascadenze') {
         await message.reply('Verifica manuale delle scadenze in corso...');
+        // First, set smart flags to ensure correct state
+        await storage.setSmartNotificationFlags();
         const count = await this.checkAllDeadlines();
         await message.reply(`Verifica completata. Inviati ${count} nuovi promemoria.`);
       } else if (content === '!testcheck') {
