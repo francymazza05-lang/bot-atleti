@@ -152,14 +152,29 @@ export class DatabaseStorage implements IStorage {
       // - threeDays window (3-1) not yet → threeDays=false
       // - oneDay window (1-0) not yet → oneDay=false
       
-      // Calculate what the flags SHOULD be based on days remaining
-      // But NEVER change a true flag to false (preserve already-sent reminders)
-      const flags = {
-        notifiedOneMonth: d.notifiedOneMonth || diffDays <= 10,  // Keep true OR window passed
-        notifiedTenDays: d.notifiedTenDays || diffDays <= 3,      // Keep true OR window passed
-        notifiedThreeDays: d.notifiedThreeDays || diffDays <= 1,  // Keep true OR window passed
-        notifiedOneDay: d.notifiedOneDay || diffDays <= 0         // Keep true OR window passed
-      };
+      // If ALL flags are true but deadline is still in the future, this was a spam-prevention reset
+      // In this case, recalculate flags based on days remaining to allow future reminders
+      const allFlagsTrue = d.notifiedOneMonth && d.notifiedTenDays && d.notifiedThreeDays && d.notifiedOneDay;
+      const deadlineInFuture = diffDays > 0;
+      
+      let flags;
+      if (allFlagsTrue && deadlineInFuture) {
+        // Reset flags intelligently - deadline was incorrectly marked as fully notified
+        flags = {
+          notifiedOneMonth: diffDays <= 10,  // Window passed
+          notifiedTenDays: diffDays <= 3,     // Window passed
+          notifiedThreeDays: diffDays <= 1,   // Window passed
+          notifiedOneDay: diffDays <= 0       // Window passed
+        };
+      } else {
+        // Normal case: preserve existing true flags, set new ones based on windows
+        flags = {
+          notifiedOneMonth: d.notifiedOneMonth || diffDays <= 10,
+          notifiedTenDays: d.notifiedTenDays || diffDays <= 3,
+          notifiedThreeDays: d.notifiedThreeDays || diffDays <= 1,
+          notifiedOneDay: d.notifiedOneDay || diffDays <= 0
+        };
+      }
       
       await db.update(deadlines)
         .set(flags)
