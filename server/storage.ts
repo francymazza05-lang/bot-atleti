@@ -152,22 +152,20 @@ export class DatabaseStorage implements IStorage {
       // - threeDays window (3-1) not yet → threeDays=false
       // - oneDay window (1-0) not yet → oneDay=false
       
-      // If ALL flags are true but deadline is still in the future, this was a spam-prevention reset
-      // In this case, recalculate flags based on days remaining to allow future reminders
-      const allFlagsTrue = d.notifiedOneMonth && d.notifiedTenDays && d.notifiedThreeDays && d.notifiedOneDay;
-      const deadlineInFuture = diffDays > 0;
+      // Check if this deadline was incorrectly blocked (all flags true but deadline still in future)
+      const wasBlocked = d.notifiedOneMonth && d.notifiedTenDays && d.notifiedThreeDays && d.notifiedOneDay && diffDays > 0;
       
       let flags;
-      if (allFlagsTrue && deadlineInFuture) {
-        // Reset flags intelligently - deadline was incorrectly marked as fully notified
+      if (wasBlocked) {
+        // Reset: soglie passate = true, soglie future = false
         flags = {
-          notifiedOneMonth: diffDays <= 10,  // Window passed
-          notifiedTenDays: diffDays <= 3,     // Window passed
-          notifiedThreeDays: diffDays <= 1,   // Window passed
-          notifiedOneDay: diffDays <= 0       // Window passed
+          notifiedOneMonth: diffDays <= 10,
+          notifiedTenDays: diffDays <= 3,
+          notifiedThreeDays: diffDays <= 1,
+          notifiedOneDay: diffDays <= 0
         };
       } else {
-        // Normal case: preserve existing true flags, set new ones based on windows
+        // Normal: flag true resta true (irreversibile), flag false → true se soglia passata
         flags = {
           notifiedOneMonth: d.notifiedOneMonth || diffDays <= 10,
           notifiedTenDays: d.notifiedTenDays || diffDays <= 3,
