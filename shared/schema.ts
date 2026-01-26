@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -40,6 +40,12 @@ export const settings = pgTable("settings", {
   value: text("value").notNull(),
 });
 
+export const birthdayWishes = pgTable("birthday_wishes", {
+  id: serial("id").primaryKey(),
+  athleteName: text("athlete_name").notNull().unique(),
+  lastWishYear: integer("last_wish_year").notNull(),
+});
+
 export const insertLogSchema = createInsertSchema(logs).omit({ id: true, createdAt: true });
 export const insertWorkoutSchema = createInsertSchema(workouts).omit({ id: true, createdAt: true });
 export const insertDeadlineSchema = createInsertSchema(deadlines).omit({ 
@@ -59,6 +65,7 @@ export type Deadline = typeof deadlines.$inferSelect;
 export type InsertDeadline = z.infer<typeof insertDeadlineSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
+export type BirthdayWish = typeof birthdayWishes.$inferSelect;
 
 export type BotStatus = {
   status: "online" | "offline" | "connecting";

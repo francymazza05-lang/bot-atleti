@@ -4,6 +4,7 @@ import {
   settings,
   workouts,
   deadlines,
+  birthdayWishes,
   type InsertLog,
   type Log,
   type InsertSetting,
@@ -12,6 +13,7 @@ import {
   type Workout,
   type InsertDeadline,
   type Deadline,
+  type BirthdayWish,
 } from "@shared/schema";
 import { eq, desc, lte, and, ilike } from "drizzle-orm";
 
@@ -181,6 +183,33 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updated;
+  }
+
+  async getBirthdayWish(athleteName: string): Promise<BirthdayWish | undefined> {
+    const [wish] = await db.select().from(birthdayWishes).where(eq(birthdayWishes.athleteName, athleteName));
+    return wish;
+  }
+
+  async setBirthdayWish(athleteName: string, year: number): Promise<void> {
+    const existing = await this.getBirthdayWish(athleteName);
+    if (existing) {
+      await db.update(birthdayWishes)
+        .set({ lastWishYear: year })
+        .where(eq(birthdayWishes.athleteName, athleteName));
+    } else {
+      await db.insert(birthdayWishes).values({ athleteName, lastWishYear: year });
+    }
+  }
+
+  async getAthletesWithBirthdays(): Promise<{ athleteName: string; dateOfBirth: string }[]> {
+    const allDeadlines = await db.select().from(deadlines);
+    const uniqueAthletes = new Map<string, string>();
+    for (const d of allDeadlines) {
+      if (d.dateOfBirth && !uniqueAthletes.has(d.athleteName)) {
+        uniqueAthletes.set(d.athleteName, d.dateOfBirth);
+      }
+    }
+    return Array.from(uniqueAthletes.entries()).map(([athleteName, dateOfBirth]) => ({ athleteName, dateOfBirth }));
   }
 }
 
