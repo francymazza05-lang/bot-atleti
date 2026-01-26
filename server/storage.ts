@@ -38,6 +38,11 @@ export interface IStorage {
   createDeadlineWithFlags(deadline: InsertDeadline, flags: { oneMonth: boolean, tenDays: boolean, threeDays: boolean, oneDay: boolean }): Promise<Deadline>;
   markDeadlineNotified(id: number, level: 'oneMonth' | 'tenDays' | 'threeDays' | 'oneDay'): Promise<void>;
   getDeadlinesByAthlete(name: string): Promise<Deadline[]>;
+
+  // Birthday wishes
+  getBirthdayWish(athleteName: string): Promise<BirthdayWish | undefined>;
+  setBirthdayWish(athleteName: string, year: number): Promise<void>;
+  getAthletesWithBirthdays(): Promise<{ athleteName: string; dateOfBirth: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {

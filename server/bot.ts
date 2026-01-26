@@ -231,6 +231,7 @@ export class BotService {
         helpMsg += '`!scadenza [nome]` - Mostra solo l\'elenco delle scadenze di un atleta\n';
         helpMsg += '`!sync` - Sincronizza manualmente i dati dal foglio Google\n';
         helpMsg += '`!verificascadenze` - Forza il controllo delle scadenze e invia promemoria mancanti\n';
+        helpMsg += '`!compleanni` - Verifica e invia auguri di compleanno\n';
         helpMsg += '`!allenamento` - Ricevi un suggerimento di allenamento casuale\n';
         helpMsg += '`!motivazione` - Ricevi una frase motivazionale\n';
         helpMsg += '`!testpromemoria` - (Admin) Invia un test delle notifiche nei canali\n';
@@ -290,6 +291,10 @@ export class BotService {
         await storage.setSmartNotificationFlags();
         const count = await this.checkAllDeadlines();
         await message.reply(`Verifica completata. Inviati ${count} nuovi promemoria.`);
+      } else if (content === '!compleanni') {
+        await message.reply('Verifica compleanni in corso...');
+        const count = await this.checkBirthdays();
+        await message.reply(`Verifica completata. Inviati ${count} messaggi di auguri.`);
       } else if (content === '!testcheck') {
         const now = Date.now();
         const deadlines = await storage.getUpcomingDeadlines();
@@ -575,6 +580,71 @@ export class BotService {
     return sentCount;
   }
 
+  private async checkBirthdays() {
+    if (!this.isConnected) return 0;
+
+    const athletes = await storage.getAthletesWithBirthdays();
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    let sentCount = 0;
+
+    for (const athlete of athletes) {
+      // Parse date of birth (format: dd/mm/yyyy)
+      const dobParts = athlete.dateOfBirth.split('/');
+      if (dobParts.length !== 3) continue;
+      
+      const birthDay = parseInt(dobParts[0], 10);
+      const birthMonth = parseInt(dobParts[1], 10);
+      
+      // Check if today is the birthday
+      if (birthDay === currentDay && birthMonth === currentMonth) {
+        // Check if we already sent a wish this year
+        const existingWish = await storage.getBirthdayWish(athlete.athleteName);
+        if (existingWish && existingWish.lastWishYear === currentYear) {
+          console.log(`[BIRTHDAY] Skipping ${athlete.athleteName} - already wished this year`);
+          continue;
+        }
+
+        // Calculate age
+        const birthYear = parseInt(dobParts[2], 10);
+        const age = currentYear - birthYear;
+
+        // Send birthday message
+        const msg = `🎂 **Tanti auguri di buon compleanno a ${athlete.athleteName}!** 🎉\nOggi compie **${age} anni**! 🥳`;
+        
+        // Mark as wished BEFORE sending to prevent duplicates
+        await storage.setBirthdayWish(athlete.athleteName, currentYear);
+        await this.sendBirthdayMessage(msg);
+        console.log(`[BIRTHDAY] Sent birthday wish for ${athlete.athleteName} (${age} years old)`);
+        sentCount++;
+      }
+    }
+    return sentCount;
+  }
+
+  private async sendBirthdayMessage(message: string) {
+    if (!this.client.guilds.cache.size) return;
+
+    const guild = this.client.guilds.cache.first();
+    if (!guild) return;
+
+    console.log(`[BIRTHDAY] Searching for birthday channel in guild ${guild.name}`);
+    const channel = guild.channels.cache.find(c => {
+      if (!c.isTextBased()) return false;
+      const cName = c.name.toLowerCase().trim();
+      return cName.includes('compleanno') || cName.includes('compleanni');
+    }) as TextChannel | undefined;
+
+    if (channel) {
+      console.log(`[BIRTHDAY] Found channel ${channel.name}, sending message...`);
+      await channel.send(message);
+    } else {
+      console.log(`[BIRTHDAY] No birthday channel found in guild ${guild.name}`);
+    }
+  }
+
   private async startReminderCheck() {
     // Only run automatic reminder checks in production to avoid duplicates
     // when both dev and production bots are running
@@ -590,13 +660,15 @@ export class BotService {
     console.log(`[REMINDER] Updated ${updated} deadlines with smart flags. Reminders will be sent at correct thresholds.`);
     
     // In production, check once per day at startup, then every 24 hours
-    console.log('[REMINDER] Starting automatic reminder check (production mode)');
+    console.log('[REMINDER] Starting automatic reminder and birthday check (production mode)');
     setTimeout(async () => {
       await this.checkAllDeadlines();
+      await this.checkBirthdays();
     }, 60 * 1000); // Wait 1 minute after startup before first check
     
     setInterval(async () => {
       await this.checkAllDeadlines();
+      await this.checkBirthdays();
     }, 24 * 60 * 60 * 1000); // Check once per day
   }
 
