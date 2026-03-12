@@ -533,14 +533,24 @@ export class BotService {
 
       const formattedDate = formatDate(d.date);
 
-      if (diffDays <= 30 && diffDays > 10 && !d.notifiedOneMonth) {
-        level = 'oneMonth';
-      } else if (diffDays <= 10 && diffDays > 3 && !d.notifiedTenDays) {
-        level = 'tenDays';
-      } else if (diffDays <= 3 && diffDays > 1 && !d.notifiedThreeDays) {
-        level = 'threeDays';
-      } else if (diffDays <= 1 && diffDays >= 0 && !d.notifiedOneDay) {
-        level = 'oneDay';
+      // Finestre di notifica per tipo:
+      // certificati: 1 mese prima (30-4 gg) + 3 giorni prima (3-0 gg)
+      // tabelle:     solo 5 giorni prima (5-0 gg) → usa flag tenDays
+      // pagamenti:   solo 3 giorni prima (3-0 gg)
+      if (d.type === 'certificato') {
+        if (diffDays <= 30 && diffDays > 3 && !d.notifiedOneMonth) {
+          level = 'oneMonth';
+        } else if (diffDays <= 3 && diffDays >= 0 && !d.notifiedThreeDays) {
+          level = 'threeDays';
+        }
+      } else if (d.type === 'tabella') {
+        if (diffDays <= 5 && diffDays >= 0 && !d.notifiedTenDays) {
+          level = 'tenDays';
+        }
+      } else if (d.type === 'pagamento') {
+        if (diffDays <= 3 && diffDays >= 0 && !d.notifiedThreeDays) {
+          level = 'threeDays';
+        }
       }
 
       if (level) {

@@ -149,35 +149,51 @@ export class DatabaseStorage implements IStorage {
       
       const diffDays = Math.ceil((d.date.getTime() - now) / (1000 * 60 * 60 * 24));
       
-      // Set flags based on which windows have PASSED (not current window)
-      // This ensures the reminder for the CURRENT window can still be sent
-      // Reminder windows: 30-10 days, 10-3 days, 3-1 days, 1-0 days
-      // 
-      // Example: deadline in 5 days (diffDays=5)
-      // - oneMonth window (30-10) has passed → oneMonth=true
-      // - tenDays window (10-3) is CURRENT → tenDays=false (can send reminder)
-      // - threeDays window (3-1) not yet → threeDays=false
-      // - oneDay window (1-0) not yet → oneDay=false
-      
-      // Check if this deadline was incorrectly blocked (all flags true but deadline still in future)
-      const wasBlocked = d.notifiedOneMonth && d.notifiedTenDays && d.notifiedThreeDays && d.notifiedOneDay && diffDays > 0;
+      // Finestre di notifica per tipo:
+      // certificati: oneMonth (30-4 gg), threeDays (3-0 gg) — tenDays/oneDay sempre TRUE
+      // tabelle:     tenDays usato come "5 giorni" (5-0 gg) — oneMonth/threeDays/oneDay sempre TRUE
+      // pagamenti:   threeDays (3-0 gg) — oneMonth/tenDays/oneDay sempre TRUE
+      //
+      // Flag = TRUE → già notificato o finestra non applicabile, NON mandare
+      // Flag = FALSE → finestra attiva o futura, può mandare
       
       let flags;
-      if (wasBlocked) {
-        // Reset: soglie passate = true, soglie future = false
+      if (d.type === 'certificato') {
+        // oneMonth: FALSE se siamo ancora nella finestra (diffDays > 3), TRUE se finestra passata
+        const oneMonth = d.notifiedOneMonth || diffDays <= 3;
+        // threeDays: FALSE se siamo nella finestra (<=3), TRUE se già passato
+        const threeDays = d.notifiedThreeDays || diffDays < 0;
         flags = {
-          notifiedOneMonth: diffDays <= 10,
-          notifiedTenDays: diffDays <= 3,
-          notifiedThreeDays: diffDays <= 1,
-          notifiedOneDay: diffDays <= 0
+          notifiedOneMonth: oneMonth,
+          notifiedTenDays: true,   // non usato per certificati
+          notifiedThreeDays: threeDays,
+          notifiedOneDay: true     // non usato per certificati
+        };
+      } else if (d.type === 'tabella') {
+        // tenDays usato come "5 giorni": FALSE se <= 5, TRUE se già passato
+        const tenDays = d.notifiedTenDays || diffDays < 0;
+        flags = {
+          notifiedOneMonth: true,  // non usato per tabelle
+          notifiedTenDays: tenDays,
+          notifiedThreeDays: true, // non usato per tabelle
+          notifiedOneDay: true     // non usato per tabelle
+        };
+      } else if (d.type === 'pagamento') {
+        // threeDays: FALSE se <= 3, TRUE se già passato
+        const threeDays = d.notifiedThreeDays || diffDays < 0;
+        flags = {
+          notifiedOneMonth: true,  // non usato per pagamenti
+          notifiedTenDays: true,   // non usato per pagamenti
+          notifiedThreeDays: threeDays,
+          notifiedOneDay: true     // non usato per pagamenti
         };
       } else {
-        // Normal: flag true resta true (irreversibile), flag false → true se soglia passata
+        // Tipo info o sconosciuto: marca tutto come notificato
         flags = {
-          notifiedOneMonth: d.notifiedOneMonth || diffDays <= 10,
-          notifiedTenDays: d.notifiedTenDays || diffDays <= 3,
-          notifiedThreeDays: d.notifiedThreeDays || diffDays <= 1,
-          notifiedOneDay: d.notifiedOneDay || diffDays <= 0
+          notifiedOneMonth: true,
+          notifiedTenDays: true,
+          notifiedThreeDays: true,
+          notifiedOneDay: true
         };
       }
       
