@@ -669,17 +669,27 @@ export class BotService {
     const updated = await storage.setSmartNotificationFlags();
     console.log(`[REMINDER] Updated ${updated} deadlines with smart flags. Reminders will be sent at correct thresholds.`);
     
-    // In production, check once per day at startup, then every 24 hours
+    // Schedule daily check at 08:00 Italy time (Europe/Rome)
+    const scheduleNextCheck = () => {
+      const now = new Date();
+      const italyNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Rome' }));
+      const target = new Date(italyNow);
+      target.setHours(8, 0, 0, 0);
+      if (italyNow >= target) {
+        target.setDate(target.getDate() + 1);
+      }
+      const msUntilTarget = target.getTime() - italyNow.getTime();
+      const minutesUntil = Math.round(msUntilTarget / 60000);
+      console.log(`[REMINDER] Next check scheduled in ${minutesUntil} minutes (at 08:00 Italy time)`);
+      setTimeout(async () => {
+        await this.checkAllDeadlines();
+        await this.checkBirthdays();
+        scheduleNextCheck(); // Schedule the next day
+      }, msUntilTarget);
+    };
+
     console.log('[REMINDER] Starting automatic reminder and birthday check (production mode)');
-    setTimeout(async () => {
-      await this.checkAllDeadlines();
-      await this.checkBirthdays();
-    }, 60 * 1000); // Wait 1 minute after startup before first check
-    
-    setInterval(async () => {
-      await this.checkAllDeadlines();
-      await this.checkBirthdays();
-    }, 24 * 60 * 60 * 1000); // Check once per day
+    scheduleNextCheck();
   }
 
   public async start(token: string) {
