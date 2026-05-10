@@ -1,0 +1,44 @@
+building client...
+vite v7.3.0 building client environment for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2323 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                   2.01 kB │ gzip:   0.77 kB
+../dist/public/assets/index-CvEW6C_u.css   77.83 kB │ gzip:  12.19 kB
+../dist/public/assets/index-B2o6oCjX.js   482.76 kB │ gzip: 151.04 kB
+✓ built in 3.37s
+building server...
+  dist/index.cjs  2.7mb ⚠️
+⚡ Done in 357ms
+==> Uploading build...
+==> Uploaded in 9.2s. Compression took 3.1s
+==> Build successful 🎉
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/opt/render/project/src/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+Error: getaddrinfo ENOTFOUND helium
+    at /opt/render/project/src/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.query (/opt/render/project/src/node_modules/drizzle-kit/bin.cjs:80622:26)
+    at async fromDatabase2 (/opt/render/project/src/node_modules/drizzle-kit/bin.cjs:19276:25) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'helium'
+}
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.cjs
+Starting Google Sheets sync...
+(node:114) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+/opt/render/project/src/dist/index.cjs:68
+==> Exited with status 1
